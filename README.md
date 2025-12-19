@@ -42,7 +42,7 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/claude-memory.git
+git clone https://github.com/rjames-dev/claude-memory.git
 cd claude-memory
 ```
 
@@ -607,8 +607,8 @@ MIT License - See [LICENSE](./LICENSE) for details
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/YOUR_USERNAME/claude-memory/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/YOUR_USERNAME/claude-memory/discussions)
+- **Issues:** [GitHub Issues](https://github.com/rjames-dev/claude-memory/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/rjames-dev/claude-memory/discussions)
 - **Documentation:** [dev-docs/DEV-DOCS-INDEX.md](./dev-docs/DEV-DOCS-INDEX.md)
 
 ---
