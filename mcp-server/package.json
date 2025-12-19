@@ -1,0 +1,19 @@
+{
+  "name": "claude-memory-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for Claude Code memory integration",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "keywords": ["mcp", "claude", "memory", "context"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "axios": "^1.6.2",
+    "pg": "^8.11.3",
+    "pgvector": "^0.2.0"
+  }
+}

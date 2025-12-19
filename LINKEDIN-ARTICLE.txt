@@ -1,0 +1,113 @@
+LinkedIn Article by James Heidinger
+
+You're three hours deep into a complex debugging session with Claude Code. You've made architectural decisions, written code, fixed bugs, and documented everything in the conversation.
+
+Then the context window fills up. Auto-compact triggers. Your session continues, but all that history? Gone.
+
+Two weeks later, you're trying to remember why you chose that particular approach. What were the tradeoffs? What did you already try? You know you discussed it with Claude, but there's no way to search for it.
+
+I've hit this wall too many times to count.
+
+The Problem
+
+Claude Code is incredible for development work. But it has a fundamental limitation: when the context window fills up (~200k tokens), it compacts automatically. You can keep working, but the detailed history of that session gets compressed into a summary.
+
+For quick tasks, that's fine. But for serious development work where you're making important architectural decisions, debugging complex issues, or planning features over multiple sessions, losing that context is painful.
+
+You end up: Re-explaining problems Claude already helped you solve. Forgetting why you made certain technical decisionsLosing track of bugs you've already investigated. Unable to search past conversations for specific solutions.
+
+What We Built
+
+Over the past few weeks, I've been building claude-memory - an open-source system that automatically captures and indexes your Claude Code conversations.
+
+Here's what it does:
+
+Automatic Capture: Before Claude compacts your context, a hook captures the full conversation and stores it in a local PostgreSQL database.
+
+AI-Powered Summaries: Using Ollama (running locally), it generates intelligent summaries of each session - not just "what happened" but architectural decisions, bugs fixed, and key insights.
+
+Semantic Search: Every conversation gets embedded into vectors (using pgvector). You can search by topic, not just keywords. Ask "when did we discuss the authentication bug?" and it finds the relevant sessions.
+
+Timeline View: See your development history chronologically, organized by project. Navigate through weeks of work to find that one conversation where you solved a critical issue.
+
+Completely Private: Everything runs locally via Docker. Your conversations never leave your machine. No cloud services, no third-party APIs for the core functionality.
+
+How It Works
+
+The architecture is surprisingly straightforward:
+
+1. Hook Integration: Claude Code has a hook system. We register a PreCompact hook that fires before auto-compact
+2. Conversation Capture: The hook sends the conversation to a Node.js processor
+3. AI Summary: Ollama (llama3.2) generates a structured summary with key decisions, files changed, and problems solved
+4. Vector Embedding: The summary gets embedded into 384-dimensional vectors
+5. Storage: Everything goes into PostgreSQL with pgvector for semantic search
+6. MCP Server: A Model Context Protocol server provides search tools directly in Claude Code
+
+When you need to recall something, you just ask Claude: "Search my memory for the NLQ-Tools Docker deployment" and it retrieves the relevant conversations with full context.
+
+Real-World Impact
+
+This isn't theoretical. I've been using it daily for the past week on a complex project (NLQ-Tools, a suite of data migration tools).
+
+Yesterday I needed to remember the security fixes we implemented two weeks ago. Instead of digging through code or trying to reconstruct it from memory, I searched claude-memory and had the full conversation in seconds - including the rationale for each fix.
+
+It changes how you work with Claude. You stop treating it like a stateless tool and start building a genuine knowledge base with it.
+
+What's Next
+
+We're preparing to release claude-memory on GitHub in the coming weeks. Before launch, we're:
+
+- Finalizing documentation and setup guides
+- Testing the PreCompact hook behavior across different scenarios
+- Building out the MCP server capabilities
+- Creating video tutorials for installation and usage
+
+If you're a developer using Claude Code regularly, especially for complex projects that span multiple sessions, this tool will change your workflow.
+
+Technical Details (For the Curious)
+
+Stack:
+- Node.js for the capture processor
+- PostgreSQL 16 with pgvector extension
+- Ollama (llama3.2) for AI summarization
+- Docker Compose for easy deployment
+- Claude Code hooks for automatic capture
+- MCP (Model Context Protocol) for search integration
+
+Features:
+- Automatic capture before context compacts
+- Manual save workflow for end-of-day backups
+- Semantic search across all conversations
+- Project-based organization
+- Timeline and snapshot retrieval
+- Full conversation export and import
+
+Privacy:
+- Fully self-hosted
+- No external API calls for core functionality
+- All data stays on your machine
+- Open source (MIT license)
+
+Why This Matters
+
+AI-assisted development is still new. We're all figuring out the best workflows and patterns.
+
+One thing is clear: these AI conversations contain valuable knowledge. Not just code snippets, but the reasoning, the tradeoffs, the "why" behind decisions. That knowledge shouldn't evaporate when the context window fills up.
+
+claude-memory is my attempt to solve that problem. Not with cloud services or proprietary platforms, but with open-source tools that developers can run themselves and trust.
+
+Get Notified
+
+We'll be releasing on GitHub soon. If you want to be notified when it's available:
+
+1. Follow me here on LinkedIn - I'll post the launch announcement
+2. Star the repo when we release (link coming soon)
+3. Join the discussion - what features would make this most useful for your workflow?
+
+I'm excited to share this with the developer community. If you're using Claude Code and hitting the same context limitations, you'll want to check this out.
+
+About the Author: James Heidinger is a software developer building tools for AI-assisted development. Currently working on NLQ (Natural Language Query) tools and claude-memory.
+
+Coming Soon: Star the GitHub repo to get notified when we launch: github.com/rjames-dev/claude-memory (repo will be public soon)
+
+What's your biggest frustration with AI coding assistants? Drop a comment below - I read every one.

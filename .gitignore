@@ -1,0 +1,41 @@
+# Environment files
+.env
+.env.local
+.env.bak
+.env.*
+!.env.example
+
+# Development documentation (internal use only)
+dev-docs/
+
+# Development artifacts (old context saves, test files)
+*-context-save-*.txt
+*-claude-memory*.txt
+
+# Data directory (PostgreSQL data)
+data/
+
+# Logs
+processor/logs/
+*.log
+
+# Node modules
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

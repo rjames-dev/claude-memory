@@ -1,0 +1,13 @@
+{
+  "name": "claude-memory",
+  "version": "2.0.0",
+  "description": "Zero-cost, zero-context-overhead memory system for Claude Code",
+  "scripts": {
+    "monitor": "node monitor.js",
+    "dashboard": "open http://localhost:3200/dashboard",
+    "dashboard-cli": "node scripts/dashboard-cli.js"
+  },
+  "keywords": ["claude", "memory", "context", "dashboard"],
+  "author": "James (with Claude Sonnet 4.5)",
+  "license": "MIT"
+}

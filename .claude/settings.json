@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && python3 auto-capture-current-session.py"
+          }
+        ]
+      }
+    ]
+  }
+}

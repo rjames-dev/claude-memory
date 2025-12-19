@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Memory Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0f1419;
+            color: #e1e8ed;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #2a3441;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-healthy {
+            background: #00d26a;
+            box-shadow: 0 0 10px rgba(0, 210, 106, 0.5);
+        }
+
+        .status-error {
+            background: #ff4444;
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #1a2332;
+            border: 1px solid #2a3441;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .card-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: #8899a6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #2a3441;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #8899a6;
+            font-size: 14px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .stat-value.success {
+            color: #00d26a;
+        }
+
+        .recent-captures {
+            grid-column: 1 / -1;
+        }
+
+        .capture-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #0f1419;
+            border: 1px solid #2a3441;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .capture-time {
+            color: #8899a6;
+            font-family: 'Courier New', monospace;
+            min-width: 100px;
+        }
+
+        .capture-project {
+            flex: 1;
+            margin: 0 15px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .capture-messages {
+            color: #8899a6;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .badge-new {
+            background: rgba(0, 210, 106, 0.2);
+            color: #00d26a;
+        }
+
+        .badge-update {
+            background: rgba(255, 166, 0, 0.2);
+            color: #ffa600;
+        }
+
+        .refresh-info {
+            color: #8899a6;
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8899a6;
+        }
+
+        .error {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span class="status-indicator status-healthy"></span> Claude Memory Dashboard</h1>
+            <div class="refresh-info">Auto-refresh: <span id="countdown">10</span>s</div>
+        </header>
+
+        <div id="error-container"></div>
+
+        <div class="grid" id="stats-container">
+            <div class="loading pulse">Loading stats...</div>
+        </div>
+    </div>
+
+    <script>
+        let refreshInterval;
+        let countdownInterval;
+        let countdown = 10;
+
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/stats');
+                if (!response.ok) throw new Error('Failed to fetch stats');
+                return await response.json();
+            } catch (error) {
+                showError(error.message);
+                return null;
+            }
+        }
+
+        async function fetchRecent() {
+            try {
+                const response = await fetch('/api/recent?limit=10');
+                if (!response.ok) throw new Error('Failed to fetch recent captures');
+                return await response.json();
+            } catch (error) {
+                showError(error.message);
+                return null;
+            }
+        }
+
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            }
+            return `${minutes}m`;
+        }
+
+        function formatTimeAgo(seconds) {
+            if (seconds === null) return 'Never';
+            if (seconds < 60) return `${seconds}s ago`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function getProjectName(path) {
+            const parts = path.split('/');
+            return parts[parts.length - 1] || parts[parts.length - 2] || 'Unknown';
+        }
+
+        function showError(message) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `<div class="error">⚠️ ${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        async function updateDashboard() {
+            const [stats, recent] = await Promise.all([fetchStats(), fetchRecent()]);
+
+            if (!stats || !recent) return;
+
+            const container = document.getElementById('stats-container');
+
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header">System Status</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Database</span>
+                        <span class="stat-value success">● Connected</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Ollama</span>
+                        <span class="stat-value success">● ${stats.ollama.model}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Processor</span>
+                        <span class="stat-value success">● Port ${stats.processor.port}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Uptime</span>
+                        <span class="stat-value">${formatUptime(stats.processor.uptime)}</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Capture Statistics</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Snapshots</span>
+                        <span class="stat-value">${stats.captures.total}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Today</span>
+                        <span class="stat-value">${stats.captures.today}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">This Week</span>
+                        <span class="stat-value">${stats.captures.week}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Last Capture</span>
+                        <span class="stat-value">${formatTimeAgo(stats.captures.lastCaptureSeconds)}</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Session Tracking</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Sessions Tracked</span>
+                        <span class="stat-value">${stats.sessions.tracked}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Database Size</span>
+                        <span class="stat-value">${stats.database.snapshots} records</span>
+                    </div>
+                </div>
+
+                <div class="card recent-captures">
+                    <div class="card-header">Recent Captures (${recent.length})</div>
+                    ${recent.map(capture => `
+                        <div class="capture-item">
+                            <span class="capture-time">${formatTimestamp(capture.timestamp)}</span>
+                            <span class="capture-project" title="${capture.project_path}">
+                                ${getProjectName(capture.project_path)}
+                            </span>
+                            <span class="capture-messages">${capture.messages} msgs</span>
+                            <span class="badge ${capture.capture_type === 'NEW' ? 'badge-new' : 'badge-update'}">
+                                ${capture.capture_type}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            // Reset countdown
+            countdown = 10;
+        }
+
+        function startCountdown() {
+            countdownInterval = setInterval(() => {
+                countdown--;
+                document.getElementById('countdown').textContent = countdown;
+                if (countdown <= 0) {
+                    countdown = 10;
+                }
+            }, 1000);
+        }
+
+        // Initial load
+        updateDashboard();
+
+        // Auto-refresh every 10 seconds
+        refreshInterval = setInterval(updateDashboard, 10000);
+        startCountdown();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            clearInterval(refreshInterval);
+            clearInterval(countdownInterval);
+        });
+    </script>
+</body>
+</html>

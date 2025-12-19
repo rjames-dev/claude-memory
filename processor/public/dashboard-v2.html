@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Memory Dashboard - Analytics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0f1419;
+            color: #e1e8ed;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #2a3441;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #00d26a;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-healthy {
+            background: #00d26a;
+            box-shadow: 0 0 10px rgba(0, 210, 106, 0.5);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #2a3441;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #8899a6;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab:hover {
+            color: #e1e8ed;
+        }
+
+        .tab.active {
+            color: #00d26a;
+            border-bottom-color: #00d26a;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #1a2332;
+            border: 1px solid #2a3441;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .card-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: #8899a6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #2a3441;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #8899a6;
+            font-size: 14px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .stat-value.success {
+            color: #00d26a;
+        }
+
+        .stat-value.warning {
+            color: #ffa600;
+        }
+
+        .stat-value.error {
+            color: #ff4444;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #2a3441;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d26a, #00a855);
+            transition: width 0.3s;
+        }
+
+        .list-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #0f1419;
+            border: 1px solid #2a3441;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .list-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .list-item-content {
+            color: #8899a6;
+            font-size: 12px;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-database { background: rgba(138, 43, 226, 0.2); color: #8a2be2; }
+        .badge-dependency { background: rgba(255, 69, 0, 0.2); color: #ff4500; }
+        .badge-command { background: rgba(30, 144, 255, 0.2); color: #1e90ff; }
+        .badge-syntax { background: rgba(255, 165, 0, 0.2); color: #ffa500; }
+        .badge-runtime { background: rgba(220, 20, 60, 0.2); color: #dc143c; }
+        .badge-other { background: rgba(128, 128, 128, 0.2); color: #808080; }
+
+        .badge-documentation { background: rgba(100, 149, 237, 0.2); color: #6495ed; }
+        .badge-javascript { background: rgba(240, 219, 79, 0.2); color: #f0db4f; }
+        .badge-python { background: rgba(53, 114, 165, 0.2); color: #3572a5; }
+        .badge-sql { background: rgba(255, 0, 255, 0.2); color: #ff00ff; }
+        .badge-config { background: rgba(255, 165, 0, 0.2); color: #ffa500; }
+        .badge-json { background: rgba(0, 255, 255, 0.2); color: #00ffff; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8899a6;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .refresh-info {
+            color: #8899a6;
+            font-size: 12px;
+        }
+
+        .wide-card {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span class="status-indicator status-healthy"></span> Claude Memory Analytics</h1>
+            <div class="refresh-info">Auto-refresh: <span id="countdown">15</span>s</div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('overview')">Overview</button>
+            <button class="tab" onclick="switchTab('quality')">Quality</button>
+            <button class="tab" onclick="switchTab('projects')">Projects</button>
+            <button class="tab" onclick="switchTab('bugs')">Bugs</button>
+            <button class="tab" onclick="switchTab('files')">Files</button>
+            <button class="tab" onclick="switchTab('decisions')">Decisions</button>
+            <button class="tab" onclick="switchTab('agents')">🤖 Agents</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="tab-overview" class="tab-content active">
+            <div class="grid" id="overview-container">
+                <div class="loading pulse">Loading overview...</div>
+            </div>
+        </div>
+
+        <!-- Quality Tab -->
+        <div id="tab-quality" class="tab-content">
+            <h2>Data Quality Metrics</h2>
+            <div class="grid" id="quality-container">
+                <div class="loading pulse">Loading quality metrics...</div>
+            </div>
+        </div>
+
+        <!-- Projects Tab -->
+        <div id="tab-projects" class="tab-content">
+            <h2>Project Statistics</h2>
+            <div id="projects-container">
+                <div class="loading pulse">Loading project stats...</div>
+            </div>
+        </div>
+
+        <!-- Bugs Tab -->
+        <div id="tab-bugs" class="tab-content">
+            <h2>Bug Analysis</h2>
+            <div class="grid" id="bugs-container">
+                <div class="loading pulse">Loading bug analysis...</div>
+            </div>
+        </div>
+
+        <!-- Files Tab -->
+        <div id="tab-files" class="tab-content">
+            <h2>File Activity Heatmap</h2>
+            <div id="files-container">
+                <div class="loading pulse">Loading file activity...</div>
+            </div>
+        </div>
+
+        <!-- Decisions Tab -->
+        <div id="tab-decisions" class="tab-content">
+            <h2>Recent Decisions</h2>
+            <div id="decisions-container">
+                <div class="loading pulse">Loading decisions...</div>
+            </div>
+        </div>
+
+        <!-- Agents Tab -->
+        <div id="tab-agents" class="tab-content">
+            <h2>Agent Memory Analytics</h2>
+            <div class="grid" id="agents-container">
+                <div class="loading pulse">Loading agent analytics...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let refreshInterval;
+        let countdownInterval;
+        let countdown = 15;
+        let currentTab = 'overview';
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        async function fetchJSON(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+            return await response.json();
+        }
+
+        function formatTimeAgo(seconds) {
+            if (seconds === null) return 'Never';
+            if (seconds < 60) return `${Math.floor(seconds)}s ago`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+
+        function getProjectName(path) {
+            const parts = path.split('/');
+            return parts[parts.length - 1] || parts[parts.length - 2] || 'Unknown';
+        }
+
+        async function updateOverview() {
+            const [stats, recent, quality] = await Promise.all([
+                fetchJSON('/api/stats'),
+                fetchJSON('/api/recent?limit=5'),
+                fetchJSON('/api/quality')
+            ]);
+
+            document.getElementById('overview-container').innerHTML = `
+                <div class="card">
+                    <div class="card-header">System Status</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Database</span>
+                        <span class="stat-value success">● Connected</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Snapshots</span>
+                        <span class="stat-value">${stats.captures.total}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Tracked Sessions</span>
+                        <span class="stat-value">${stats.sessions.tracked}</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Data Quality</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Average Score</span>
+                        <span class="stat-value success">${quality.avg_quality}/10</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">High Quality (≥8)</span>
+                        <span class="stat-value">${quality.high_quality} (${Math.round(quality.high_quality/quality.total*100)}%)</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${quality.high_quality/quality.total*100}%"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Recent Activity</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Today</span>
+                        <span class="stat-value">${stats.captures.today}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">This Week</span>
+                        <span class="stat-value">${stats.captures.week}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Last Capture</span>
+                        <span class="stat-value">${formatTimeAgo(stats.captures.lastCaptureSeconds)}</span>
+                    </div>
+                </div>
+
+                <div class="card wide-card">
+                    <div class="card-header">Recent Captures</div>
+                    ${recent.map(c => `
+                        <div class="list-item">
+                            <div class="list-item-header">
+                                <strong>${getProjectName(c.project_path)}</strong>
+                                <span>${formatTimeAgo((new Date() - new Date(c.timestamp))/1000)}</span>
+                            </div>
+                            <div class="list-item-content">${c.messages} messages</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function updateQuality() {
+            const quality = await fetchJSON('/api/quality');
+
+            document.getElementById('quality-container').innerHTML = `
+                <div class="card">
+                    <div class="card-header">Overall Quality</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Average Score</span>
+                        <span class="stat-value success">${quality.avg_quality}/10</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Max Score</span>
+                        <span class="stat-value">${quality.max_score}/10</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Min Score</span>
+                        <span class="stat-value warning">${quality.min_score}/10</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Quality Distribution</div>
+                    <div class="stat-row">
+                        <span class="stat-label">High (8-10)</span>
+                        <span class="stat-value success">${quality.high_quality}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${quality.high_quality/quality.total*100}%"></div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Medium (5-7)</span>
+                        <span class="stat-value warning">${quality.medium_quality}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${quality.medium_quality/quality.total*100}%; background: #ffa600;"></div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Low (<5)</span>
+                        <span class="stat-value error">${quality.low_quality}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${quality.low_quality/quality.total*100}%; background: #ff4444;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function updateProjects() {
+            const projects = await fetchJSON('/api/projects');
+
+            document.getElementById('projects-container').innerHTML = projects.map(p => `
+                <div class="card" style="margin-bottom: 20px;">
+                    <div class="card-header">${getProjectName(p.project_path)}</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Snapshots</span>
+                        <span class="stat-value">${p.total_snapshots}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Sessions</span>
+                        <span class="stat-value">${p.tracked_sessions}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Messages</span>
+                        <span class="stat-value">${p.total_messages}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Avg per Snapshot</span>
+                        <span class="stat-value">${p.avg_messages_per_snapshot}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Last Activity</span>
+                        <span class="stat-value">${formatTimeAgo(p.last_activity_seconds)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Common Tag</span>
+                        <span class="stat-value">${p.most_common_tag || 'none'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateBugs() {
+            const bugs = await fetchJSON('/api/bugs');
+            const total = bugs.categories.reduce((sum, c) => sum + parseInt(c.count), 0);
+
+            document.getElementById('bugs-container').innerHTML = `
+                <div class="card">
+                    <div class="card-header">Bug Categories</div>
+                    ${bugs.categories.map(c => `
+                        <div class="stat-row">
+                            <span class="stat-label">${c.bug_category}</span>
+                            <span class="stat-value">${c.count} (${Math.round(c.count/total*100)}%)</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${c.count/total*100}%"></div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="card wide-card">
+                    <div class="card-header">Recent Bugs Fixed</div>
+                    ${bugs.recent.map(b => `
+                        <div class="list-item">
+                            <div class="list-item-header">
+                                <span class="badge badge-${b.bug_category}">${b.bug_category}</span>
+                                <span>${formatTimeAgo((new Date() - new Date(b.pst_time))/1000)}</span>
+                            </div>
+                            <div class="list-item-content">${b.bug_text.substring(0, 100)}${b.bug_text.length > 100 ? '...' : ''}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function updateFiles() {
+            const files = await fetchJSON('/api/files');
+
+            document.getElementById('files-container').innerHTML = `
+                <div class="grid">
+                    ${files.map(f => `
+                        <div class="list-item">
+                            <div class="list-item-header">
+                                <strong>${f.file_path.split('/').pop()}</strong>
+                                <span class="badge badge-${f.file_type}">${f.file_type}</span>
+                            </div>
+                            <div class="list-item-content">
+                                Mentions: ${f.mention_count} | Projects: ${f.project_count} | Last: ${formatTimeAgo((new Date() - new Date(f.last_mentioned))/1000)}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function updateDecisions() {
+            const decisions = await fetchJSON('/api/decisions');
+
+            document.getElementById('decisions-container').innerHTML = `
+                <div class="grid">
+                    ${decisions.map(d => `
+                        <div class="list-item">
+                            <div class="list-item-header">
+                                <strong>Snapshot #${d.snapshot_id}</strong>
+                                <span>${formatTimeAgo((new Date() - new Date(d.pst_time))/1000)}</span>
+                            </div>
+                            <div class="list-item-content">${d.decision_text}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function updateAgents() {
+            const stats = await fetchJSON('/api/agents/stats');
+            const performance = await fetchJSON('/api/agents/performance');
+            const tools = await fetchJSON('/api/agents/tools');
+            const recent = await fetchJSON('/api/agents/recent');
+
+            document.getElementById('agents-container').innerHTML = `
+                <div class="card">
+                    <div class="card-header">Overview</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Agents</span>
+                        <span class="stat-value success">${stats.overview.total_agents}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Unique Configs</span>
+                        <span class="stat-value">${stats.overview.unique_configs}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Sessions</span>
+                        <span class="stat-value">${stats.overview.sessions_with_agents}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Avg Duration</span>
+                        <span class="stat-value">${stats.overview.avg_duration || 'N/A'}s</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">By Type</div>
+                    ${stats.byType.map(t => `
+                        <div class="stat-row">
+                            <span class="stat-label">${t.agent_type}</span>
+                            <span class="stat-value">${t.count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Top Tools Used</div>
+                    ${tools.slice(0, 6).map(t => `
+                        <div class="stat-row">
+                            <span class="stat-label">${t.tool_name} (${t.agent_type})</span>
+                            <span class="stat-value">${t.total_uses}</span>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="card" style="grid-column: 1 / -1;">
+                    <div class="card-header">Performance by Configuration</div>
+                    <div class="list-container">
+                        ${performance.slice(0, 8).map(p => `
+                            <div class="list-item">
+                                <div class="list-item-header">
+                                    <strong>${p.agent_type} v${p.version}</strong>
+                                    <span>${p.model_used || 'unknown'}</span>
+                                </div>
+                                <div class="list-item-content">
+                                    Used: ${p.times_used}x | Duration: ${p.avg_duration_seconds || 'N/A'}s |
+                                    Messages: ${p.avg_messages} | Success: ${p.success_rate_pct}%
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="card" style="grid-column: 1 / -1;">
+                    <div class="card-header">Recent Agent Work</div>
+                    <div class="list-container">
+                        ${recent.slice(0, 5).map(a => `
+                            <div class="list-item">
+                                <div class="list-item-header">
+                                    <strong>${a.agent_type} (${a.agent_id})</strong>
+                                    <span>${a.pst_start ? formatTimeAgo((new Date() - new Date(a.pst_start))/1000) : 'N/A'}</span>
+                                </div>
+                                <div class="list-item-content">
+                                    ${a.request ? a.request.substring(0, 80) + '...' : 'No request'}
+                                    ${a.duration_seconds ? `(${a.duration_seconds}s)` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function updateDashboard() {
+            try {
+                if (currentTab === 'overview') await updateOverview();
+                else if (currentTab === 'quality') await updateQuality();
+                else if (currentTab === 'projects') await updateProjects();
+                else if (currentTab === 'bugs') await updateBugs();
+                else if (currentTab === 'files') await updateFiles();
+                else if (currentTab === 'decisions') await updateDecisions();
+                else if (currentTab === 'agents') await updateAgents();
+
+                countdown = 15;
+            } catch (error) {
+                console.error('Dashboard update error:', error);
+            }
+        }
+
+        function startCountdown() {
+            countdownInterval = setInterval(() => {
+                countdown--;
+                document.getElementById('countdown').textContent = countdown;
+                if (countdown <= 0) {
+                    countdown = 15;
+                }
+            }, 1000);
+        }
+
+        // Initial load
+        updateDashboard();
+
+        // Auto-refresh every 15 seconds
+        refreshInterval = setInterval(updateDashboard, 15000);
+        startCountdown();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            clearInterval(refreshInterval);
+            clearInterval(countdownInterval);
+        });
+    </script>
+</body>
+</html>

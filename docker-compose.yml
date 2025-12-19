@@ -1,0 +1,125 @@
+# Claude Memory System
+# Zero-cost, zero-context-overhead memory system for Claude Code
+# Project: claude-memory
+#
+# Port Allocations:
+# - 3200: Context Processor API (capture endpoint, embedding generation)
+# - 5435: PostgreSQL + pgvector (context database)
+# - 11434: Ollama (AI summarization)
+#
+# Note: MCP Server runs locally (invoked by Claude Code), not in Docker
+#
+# ============================================================
+# DATA SAFETY WARNING
+# ============================================================
+#
+# Your conversation snapshots are stored in Docker named volumes:
+#   - claude-memory-db-data (PostgreSQL database - YOUR PRECIOUS DATA!)
+#   - claude-memory-ollama (Ollama models)
+#
+# SAFE COMMANDS (preserve data):
+#   docker-compose restart      # Restart containers, keep data
+#   docker-compose stop         # Stop containers, keep data
+#   docker-compose down         # Remove containers, keep volumes/data
+#   docker-compose up -d        # Start containers, use existing data
+#
+# DANGEROUS COMMAND (deletes all data):
+#   docker-compose down -v      # ⚠️  DELETES VOLUMES AND ALL SNAPSHOTS!
+#
+# To backup your data before changes:
+#   ./scripts/backup-database.sh (coming soon)
+#
+# If you change CONTEXT_DB_PASSWORD in .env:
+#   - Database keeps the OLD password
+#   - You must either:
+#     a) Use the original password, OR
+#     b) Remove volume with: docker-compose down -v (loses data)
+#   - Best practice: Don't change password after initial setup
+#
+# ============================================================
+
+name: claude-memory
+
+networks:
+  claude-memory-network:
+    name: claude-memory-network
+    driver: bridge
+
+volumes:
+  claude-memory-db-data:
+    name: claude-memory-db-data
+    driver: local
+  claude-memory-ollama:
+    name: claude-memory-ollama
+    driver: local
+
+services:
+  # PostgreSQL with pgvector for context storage
+  context-db:
+    image: ankane/pgvector:latest
+    container_name: claude-context-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-claude_memory}
+      POSTGRES_USER: ${POSTGRES_USER:-memory_admin}
+      POSTGRES_PASSWORD: ${CONTEXT_DB_PASSWORD}
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=${POSTGRES_SHARED_BUFFERS:-256MB}"
+      - "-c"
+      - "max_connections=${POSTGRES_MAX_CONNECTIONS:-100}"
+    volumes:
+      - claude-memory-db-data:/var/lib/postgresql/data
+      - ./schema/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${POSTGRES_HOST_PORT:-5435}:5432"
+    networks:
+      - claude-memory-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-memory_admin} -d ${POSTGRES_DB:-claude_memory}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Ollama for AI summarization
+  ollama:
+    image: ollama/ollama:latest
+    container_name: claude-ollama
+    ports:
+      - "${OLLAMA_HOST_PORT:-11434}:11434"
+    volumes:
+      - claude-memory-ollama:/root/.ollama
+    networks:
+      - claude-memory-network
+    restart: unless-stopped
+
+  # Context capture and processing service
+  context-processor:
+    build:
+      context: ./processor
+      dockerfile: Dockerfile
+    container_name: claude-context-processor
+    environment:
+      PORT: ${PROCESSOR_HOST_PORT:-3200}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-memory_admin}:${CONTEXT_DB_PASSWORD}@context-db:5432/${POSTGRES_DB:-claude_memory}
+      CLAUDE_CODE_ROOT: /claude-workspace
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      SUMMARY_MODEL: ${SUMMARY_MODEL:-llama3.2:latest}
+      OLLAMA_URL: http://ollama:11434
+      USE_REAL_EMBEDDINGS: ${USE_REAL_EMBEDDINGS:-true}
+      USE_AI_SUMMARIES: ${USE_AI_SUMMARIES:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${PROCESSOR_HOST_PORT:-3200}:${PROCESSOR_HOST_PORT:-3200}"
+    volumes:
+      # Read-only access to Claude workspace (CONFIGURABLE via .env)
+      - ${CLAUDE_WORKSPACE_ROOT}:/claude-workspace:ro
+      - ./processor/logs:/app/logs
+    depends_on:
+      context-db:
+        condition: service_healthy
+    networks:
+      - claude-memory-network
+    restart: unless-stopped
+

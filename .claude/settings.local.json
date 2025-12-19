@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "claude-memory"
+  ],
+  "enableAllProjectMcpServers": true
+}
