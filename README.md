@@ -29,11 +29,37 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 
 ## Prerequisites
 
-- **Docker & Docker Compose** (v2.0+)
+### Required
+
+- **Docker Desktop** (v4.0+)
+  - Download: https://www.docker.com/products/docker-desktop
+  - Includes Docker Compose v2
+  - **For Apple Silicon (M1/M2/M3/M4):** See configuration notes below
 - **Claude Code CLI** (for MCP integration)
+  - Installation: https://claude.ai/download
+  - Not required for basic capture functionality
+
+### System Requirements
+
 - **macOS, Linux, or WSL2** (Windows via WSL)
-- **8GB RAM minimum** (16GB recommended for Ollama)
+- **8GB RAM minimum** (16GB+ recommended)
 - **5GB disk space** (for Docker images and database)
+
+### Apple Silicon (M1/M2/M3/M4) Configuration
+
+**Important:** Docker Desktop on Apple Silicon needs more memory for Ollama.
+
+1. **Open Docker Desktop** → Settings → Resources
+2. **Increase Memory:**
+   - **Minimum:** 6GB (basic functionality)
+   - **Recommended:** 8GB (smooth Ollama performance)
+   - **Optimal:** 12GB (multiple models, no slowdowns)
+3. **CPU:** 4 cores recommended
+4. **Click "Apply & Restart"**
+
+**Why?** Ollama (llama3.2:latest) needs ~4GB for model + inference. With default 2GB Docker allocation, captures will be very slow or fail.
+
+**Alternative:** If you don't need AI summaries, set `USE_AI_SUMMARIES=false` in `.env` to skip Ollama entirely
 
 ---
 
@@ -59,13 +85,34 @@ nano .env
 **Required configuration:**
 ```bash
 # Set your workspace root (where Claude Code runs)
+# This is the parent directory of your projects
 CLAUDE_WORKSPACE_ROOT=/Users/yourname/workspace
 
 # Set a secure database password
 CONTEXT_DB_PASSWORD=$(openssl rand -base64 32)
 ```
 
-Or use the setup helper:
+**Workspace Path Examples:**
+
+| Your Setup | CLAUDE_WORKSPACE_ROOT Example |
+|------------|-------------------------------|
+| Projects in `~/Code/` | `/Users/yourname/Code` |
+| Projects in `~/workspace/` | `/Users/yourname/workspace` |
+| Projects in `~/Documents/Projects/` | `/Users/yourname/Documents/Projects` |
+| Multiple roots? | Use the common parent (e.g., `/Users/yourname`) |
+
+**How to find your workspace root:**
+```bash
+# Navigate to where you run Claude Code
+cd ~/Code/my-project  # or wherever you work
+
+# Print parent directory
+pwd | sed 's|/[^/]*$||'
+# Example output: /Users/yourname/Code
+# Use this as CLAUDE_WORKSPACE_ROOT
+```
+
+Or use the setup helper (auto-detects):
 ```bash
 ./scripts/setup-env.sh
 ```
@@ -77,13 +124,21 @@ docker-compose up -d
 ```
 
 **First-time setup:** Docker will:
-- Pull PostgreSQL + pgvector image
-- Pull Ollama image
-- Build processor service image
+- Pull PostgreSQL + pgvector image (~300MB)
+- Pull Ollama image (~1GB)
+- Build processor service image (~2GB with dependencies)
 - Initialize database schema
 - Download Ollama model (llama3.2:latest, ~2GB)
 
-This takes 5-10 minutes depending on your internet connection.
+**Total download:** ~5GB | **Time:** 5-15 minutes (varies by connection speed)
+
+**Apple Silicon users:** First-time Ollama model download can take 10-20 minutes. Be patient!
+
+**Watch progress:**
+```bash
+# Monitor Ollama downloading the model
+docker logs -f claude-ollama
+```
 
 ### 4. Verify Installation
 
@@ -383,6 +438,60 @@ grep CLAUDE_WORKSPACE_ROOT .env
 # 3. Database authentication failed
 # Solution: Use original password or remove volume
 ```
+
+### Apple Silicon (M1/M2/M3/M4) Specific Issues
+
+#### Capture Takes Forever / Timeouts
+
+**Symptom:** Captures take 5+ minutes or timeout entirely
+
+**Cause:** Docker Desktop has insufficient memory for Ollama
+
+**Solution:**
+```bash
+# 1. Stop containers
+docker-compose down
+
+# 2. Increase Docker memory allocation:
+#    Docker Desktop → Settings → Resources → Memory
+#    Set to 8GB minimum (12GB recommended)
+
+# 3. Apply & Restart Docker Desktop
+
+# 4. Start containers
+docker-compose up -d
+
+# 5. Wait for Ollama to fully start (can take 2-3 minutes)
+docker logs -f claude-ollama
+# Look for: "llama server listening"
+```
+
+#### Ollama Crashes or Fails to Start
+
+**Symptom:** `docker logs claude-ollama` shows crashes or out of memory errors
+
+**Quick Fix - Disable AI Summaries:**
+```bash
+# Edit .env
+nano .env
+
+# Add or change this line:
+USE_AI_SUMMARIES=false
+
+# Restart
+docker-compose restart
+```
+
+**This disables Ollama** but capture still works (without AI summaries). Metadata extraction, embeddings, and search all continue working normally.
+
+#### Node.js Not Required for Basic Use
+
+**Note:** You don't need Node.js installed on your host machine. The processor service runs entirely in Docker. Node.js is only needed if you want to:
+- Run migration scripts locally (can also use bash versions)
+- Develop/modify the processor service
+- Run local tests
+
+For normal use, Docker is all you need!
 
 ### Capture Fails / Timeouts
 
