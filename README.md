@@ -35,9 +35,14 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
   - Download: https://www.docker.com/products/docker-desktop
   - Includes Docker Compose v2
   - **For Apple Silicon (M1/M2/M3/M4):** See configuration notes below
-- **Claude Code CLI** (for MCP integration)
+- **Node.js v18+** (for MCP tools only)
+  - Download: https://nodejs.org/
+  - Check version: `node --version`
+  - **Not required** for basic capture/hooks - only needed if you want MCP search tools
+- **Claude Code CLI** (recommended)
   - Installation: https://claude.ai/download
-  - Not required for basic capture functionality
+  - Required for: MCP tools, auto-capture hooks
+  - Not required for: Manual API-based capture
 
 ### System Requirements
 
@@ -64,6 +69,17 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 ---
 
 ## Quick Start
+
+**Installation Checklist:**
+```markdown
+□ Prerequisites verified (Docker, Node.js if using MCP)
+□ Cloned repository to permanent location
+□ Configured .env (CLAUDE_WORKSPACE_ROOT + password)
+□ Started Docker containers
+□ Verified installation (API responds)
+□ (Optional) Set up MCP tools
+□ (Optional) Configure auto-capture hooks
+```
 
 ### 1. Clone Repository
 
@@ -138,7 +154,28 @@ docker-compose up -d
 ```bash
 # Monitor Ollama downloading the model
 docker logs -f claude-ollama
+# Press Ctrl+C to stop viewing logs (containers keep running)
 ```
+
+**Expected output during first-time setup:**
+```
+Pulling ollama (ollama/ollama:latest)...
+latest: Pulling from ollama/ollama
+[====>                                              ]  234.5MB/1.2GB
+
+# After containers start, Ollama downloads model:
+pulling manifest
+pulling 8eeb52dfb3bb... 100% ▕████████████████▏ 1.3 GB
+pulling 73b313b5552d... 100% ▕████████████████▏  11 KB
+pulling 0ba8f0e314b4... 100% ▕████████████████▏  12 KB
+pulling 56bb8bd477a5... 100% ▕████████████████▏  96 B
+pulling 1a4c3c319823... 100% ▕████████████████▏ 485 B
+verifying sha256 digest
+writing manifest
+success  # ← Model ready!
+```
+
+**This is normal!** Don't interrupt. Wait for "success" message.
 
 ### 4. Verify Installation
 
@@ -157,9 +194,26 @@ curl http://localhost:3200/api/stats
 # }
 ```
 
-### 5. Set Up MCP Tools (Optional)
+### 5. Choose Your Integration (Optional)
 
-See [MCP-SETUP.md](./MCP-SETUP.md) for Claude Code integration.
+You have **three independent options** for using claude-memory. Pick what fits your workflow:
+
+| Integration | What It Does | Setup Required | Best For |
+|-------------|--------------|----------------|----------|
+| **Auto-Capture Hooks** | Automatically saves sessions when auto-compact triggers | Configure hooks in `~/.claude/settings.json` | Set-and-forget automation |
+| **MCP Search Tools** | Let Claude search your memory from within conversations | Install MCP server + configure | Interactive memory queries |
+| **Manual API Calls** | Call capture API directly | None (just Docker running) | Custom integrations, scripts |
+
+**You can use:**
+- ✅ Hooks only (auto-capture, no search)
+- ✅ MCP only (manual capture, can search)
+- ✅ Both (auto-capture + search)
+- ✅ Neither (API-only via curl/scripts)
+
+**Setup guides:**
+- **Hooks:** See [hooks/README.md](./hooks/README.md)
+- **MCP Tools:** See [MCP-SETUP.md](./MCP-SETUP.md)
+- **API:** See "API Reference" section below
 
 ---
 
