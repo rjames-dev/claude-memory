@@ -205,6 +205,44 @@ async function querySnapshots(project_path, limit = 10) {
 }
 
 /**
+ * Get the most recent snapshot for a project to establish session boundaries
+ * Used by Phase 6C session-aware summarization
+ *
+ * @param {string} project_path - Project path
+ * @returns {Object|null} Last snapshot or null if first session
+ */
+async function getLastSnapshotForProject(project_path) {
+  const client = await pool.connect();
+
+  try {
+    const query = `
+      SELECT
+        id,
+        timestamp,
+        summary,
+        tags,
+        mentioned_files,
+        session_id
+      FROM context_snapshots
+      WHERE project_path = $1
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `;
+
+    const result = await client.query(query, [project_path]);
+
+    if (result.rows.length === 0) {
+      return null; // First session for this project
+    }
+
+    return result.rows[0];
+
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Test database connection
  */
 async function testConnection() {
@@ -233,6 +271,7 @@ async function closePool() {
 module.exports = {
   storeSnapshot,
   querySnapshots,
+  getLastSnapshotForProject,
   testConnection,
   closePool
 };

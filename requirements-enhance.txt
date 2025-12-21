@@ -1,0 +1,5 @@
+# Requirements for /mem-enhance-summary feature
+# Install with: pip install -r requirements-enhance.txt
+
+anthropic>=0.75.0
+psycopg2-binary>=2.9.0

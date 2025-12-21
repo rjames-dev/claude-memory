@@ -20,7 +20,7 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 ✅ **Agent Work Tracking** - Captures agent/subprocess tasks and links to parent sessions
 ✅ **MCP Tools Integration** - Claude can search your history automatically
 ✅ **Rich Metadata Extraction** - Tags, files, decisions, bugs, Git state
-✅ **AI Summaries** - Ollama generates meaningful summaries of each session
+✅ **Two-Tier AI Summaries** - Free Ollama summaries + Premium Claude enhancements
 ✅ **Vector Embeddings** - sentence-transformers generates 384-dim embeddings
 ✅ **Project Timeline** - Chronological view of all work sessions
 ✅ **Portable Configuration** - Environment-based setup, works on any system
@@ -388,6 +388,74 @@ WHERE embedding <=> '[0.1, 0.2, ...]' < 0.5
 ORDER BY similarity DESC
 LIMIT 5;
 ```
+
+### Enhanced Summaries (Premium Feature)
+
+Generate comprehensive 1500-3000 word summaries for critical sessions using Claude Sonnet 4.5:
+
+#### Setup
+
+1. Install Python dependencies:
+```bash
+pip install -r requirements-enhance.txt
+```
+
+2. Configure API key in `.env`:
+```bash
+echo "ANTHROPIC_API_KEY='sk-ant-...'" >> .env
+```
+
+#### Usage
+
+```bash
+# Via slash command (recommended)
+/mem-enhance-summary <snapshot_id>
+
+# Or direct script
+python3 enhance-summary.py <snapshot_id>
+```
+
+**Example:**
+```bash
+# Enhance snapshot #21
+/mem-enhance-summary 21
+
+# Output:
+# ✅ Enhanced summary generated (14,992 chars)
+# ✅ Embedding regenerated (384 dimensions)
+# ✅ Database updated
+#
+# Before: 329 chars
+# After:  14,992 chars
+# Improvement: +14,663 chars
+```
+
+#### When to Use
+
+- **Fix poor-quality summaries** from before Phase 6C improvements
+- **Critical work sessions** requiring detailed archival records
+- **Complex features** needing comprehensive documentation
+- **Production incidents** requiring compliance/audit trails
+- **Knowledge transfer** for team onboarding
+- **Search not finding details** - enhance summary to improve searchability
+
+#### Cost & Performance
+
+- **Cost:** ~$0.12-0.25 per enhanced summary (uses Claude Sonnet 4.5 API)
+- **Time:** 10-20 seconds per summary
+- **Quality:** 10-45x more detailed than standard Ollama summaries
+- **On-demand:** Only enhance snapshots you choose
+
+#### Two-Tier Summary Architecture
+
+| Feature | Standard (Ollama) | Enhanced (Claude) |
+|---------|------------------|-------------------|
+| **Cost** | Free | ~$0.12-0.25 each |
+| **Trigger** | Automatic | On-demand |
+| **Length** | 400 words | 1500-3000 words |
+| **Model** | llama3.2 | claude-sonnet-4-5 |
+| **Use Case** | All captures | Critical sessions |
+| **Context** | 4k tokens | 200k tokens |
 
 ---
 

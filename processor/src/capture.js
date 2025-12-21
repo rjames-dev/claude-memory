@@ -45,9 +45,14 @@ async function captureContext({ project_path, trigger, conversation_data, sessio
     const metadata = await extractMetadata(conversation, project_path);
     console.log(`✅ [2/5] Extracted: ${metadata.tags?.length || 0} tags, ${metadata.files?.length || 0} files`);
 
-    // Step 3: Generate summary using OpenWebUI
-    console.log('🔄 [3/5] Generating summary (may take 30-60 seconds)...');
-    const summary = await summarize(conversation);
+    // Step 3: Generate session-aware summary with metadata and context
+    console.log('🔄 [3/5] Generating session-aware summary (may take 30-60 seconds)...');
+    const summaryContext = {
+      project_path,
+      session_id,
+      trigger
+    };
+    const summary = await summarize(conversation, metadata, summaryContext);
     console.log(`✅ [3/5] Summary generated (${summary.length} chars)`);
 
     // Step 4: Generate embedding using OpenWebUI

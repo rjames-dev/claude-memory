@@ -22,7 +22,7 @@ from datetime import datetime
 # Configuration
 PROCESSOR_URL = os.getenv("CLAUDE_MEMORY_PROCESSOR_URL", "http://localhost:3200")
 CAPTURE_ENDPOINT = f"{PROCESSOR_URL}/capture"
-MESSAGE_LIMIT = 100  # Limit messages sent to avoid huge payloads
+# MESSAGE_LIMIT removed - Phase 6C intelligent sampling handles large conversations
 
 def detect_current_session():
     """
@@ -166,9 +166,7 @@ def capture_session(session_info, messages):
     # Convert Claude Code format to OpenAI format for AI processing
     converted_messages = convert_to_openai_format(messages)
 
-    # Limit messages to avoid huge payloads
-    limited_messages = converted_messages[:MESSAGE_LIMIT] if len(converted_messages) > MESSAGE_LIMIT else converted_messages
-
+    # Phase 6C: No artificial limit - intelligent sampling handles large conversations
     # Prepare capture request
     request_data = {
         "project_path": session_info['project_path'],
@@ -176,7 +174,7 @@ def capture_session(session_info, messages):
         "session_id": session_info['session_id'],
         "transcript_path": session_info['transcript_path'],
         "conversation_data": {
-            "messages": limited_messages
+            "messages": converted_messages
         }
     }
 
@@ -223,8 +221,6 @@ def main():
             print("   This transcript may only contain system/metadata entries")
             sys.exit(1)
 
-        if len(converted_messages) > MESSAGE_LIMIT:
-            print(f"⚠️  Limiting to first {MESSAGE_LIMIT} messages for capture")
         print()
 
         # Step 3: Capture to database
@@ -237,9 +233,8 @@ def main():
         print(f"   Status: {result['status']}")
         print(f"   Project: {result['project_path']}")
         print(f"   Trigger: {result['trigger']}")
-        print(f"   Messages sent: {min(len(converted_messages), MESSAGE_LIMIT)}")
-        print(f"   Total conversation: {len(converted_messages)} messages")
-        print(f"   Raw transcript: {len(messages)} entries")
+        print(f"   Messages captured: {len(converted_messages)}")
+        print(f"   Raw transcript entries: {len(messages)}")
         print()
         print("⏳ Processing in background (summary + embeddings)...")
         print("   Check dashboard: http://localhost:3200/dashboard")
