@@ -84,6 +84,7 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 □ Verified installation (API responds)
 □ Installed Python dependencies (pip3 install -r requirements.txt)
 □ Configure auto-capture hooks (REQUIRED for automatic capture feature)
+□ Install slash commands (cp .claude/commands/*.md ~/.claude/commands/)
 □ (Optional) Set up MCP search tools
 ```
 
@@ -236,7 +237,26 @@ This script will:
 
 ---
 
-### 7. Optional Integrations
+### 7. Install Slash Commands
+
+Install custom slash commands to make them available in all Claude Code sessions:
+
+```bash
+# Create commands directory
+mkdir -p ~/.claude/commands
+
+# Install mem-enhance-summary command
+cp .claude/commands/mem-enhance-summary.md ~/.claude/commands/
+```
+
+**After restart, you'll have:**
+- `/mem-enhance-summary <id>` - Generate detailed summaries using Claude Sonnet 4.5
+
+**Note:** This is separate from MCP tools. See [Optional Integrations](#8-optional-integrations) for MCP setup.
+
+---
+
+### 8. Optional Integrations
 
 You can enhance claude-memory with these additional integrations:
 
@@ -358,13 +378,7 @@ See [Phase 6A troubleshooting](./dev-docs/testing/TROUBLESHOOTING-MEM-CAPTURE.md
 
 ### Manual Capture
 
-Use MCP tools (if configured):
-```
-/mem-capture  # Capture current session
-/mem-save     # Save and compact current session
-```
-
-Or call API directly:
+Call the processor API directly:
 ```bash
 curl -X POST http://localhost:3200/api/capture \\
   -H "Content-Type: application/json" \\
