@@ -37,6 +37,9 @@ CREATE TABLE context_snapshots (
     git_commit_hash TEXT,
     git_branch TEXT,
 
+    -- Source file tracking
+    transcript_path TEXT,                    -- Path to Claude Code transcript (.jsonl)
+
     -- Metadata
     created_by TEXT DEFAULT 'claude-code',
     storage_size_bytes INTEGER              -- Size of raw_context for monitoring

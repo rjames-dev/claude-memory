@@ -35,6 +35,11 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
   - Download: https://www.docker.com/products/docker-desktop
   - Includes Docker Compose v2
   - **For Apple Silicon (M1/M2/M3/M4):** See configuration notes below
+- **Python 3** (for auto-capture hooks)
+  - Usually pre-installed on macOS/Linux
+  - Check version: `python3 --version`
+  - Required for: Auto-capture hooks
+  - Not required for: Manual API-based capture only
 - **Node.js v18+** (for MCP tools only)
   - Download: https://nodejs.org/
   - Check version: `node --version`
@@ -72,11 +77,12 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 
 **Installation Checklist:**
 ```markdown
-□ Prerequisites verified (Docker, Node.js if using MCP)
+□ Prerequisites verified (Docker, Python 3, Node.js if using MCP)
 □ Cloned repository to permanent location
 □ Configured .env (CLAUDE_WORKSPACE_ROOT + password)
 □ Started Docker containers
 □ Verified installation (API responds)
+□ Installed Python dependencies (pip3 install -r requirements.txt)
 □ Configure auto-capture hooks (REQUIRED for automatic capture feature)
 □ (Optional) Set up MCP search tools
 ```
@@ -194,7 +200,17 @@ curl http://localhost:3200/api/stats
 # }
 ```
 
-### 5. Set Up Automatic Capture (Required for Key Feature)
+### 5. Install Python Dependencies
+
+The auto-capture hooks require Python 3 with the `requests` library:
+
+```bash
+pip3 install -r requirements.txt
+```
+
+**Note:** This is separate from the Docker containers (which don't need this). This is only for the hook scripts that run on your host machine.
+
+### 6. Set Up Automatic Capture (Required for Key Feature)
 
 **⚠️ IMPORTANT:** The "Automatic Capture" feature (highlighted in the features list above) requires configuring hooks. Without this step, captures will only work via manual API calls.
 
@@ -220,7 +236,7 @@ This script will:
 
 ---
 
-### 6. Optional Integrations
+### 7. Optional Integrations
 
 You can enhance claude-memory with these additional integrations:
 

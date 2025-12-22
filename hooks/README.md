@@ -54,6 +54,19 @@ Claude Code Session
 | `settings.json` | Hook configuration template |
 | `README.md` | This file (documentation) |
 
+## Prerequisites
+
+The hook script requires Python 3 with the `requests` library:
+
+```bash
+# Install from project root
+cd /path/to/claude-memory
+pip3 install -r requirements.txt
+
+# Or install manually
+pip3 install requests
+```
+
 ## Installation
 
 ### Quick Setup (Recommended)
