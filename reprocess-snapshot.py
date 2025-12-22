@@ -26,7 +26,9 @@ DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5435")
 DB_NAME = os.getenv("DB_NAME", "claude_memory")
 DB_USER = os.getenv("DB_USER", "memory_admin")
-DB_PASS = os.getenv("DB_PASS", "RvnK7z05jIlgo4FIf4dvpvWhSl4lnOtWQgH0a9gEzVE=")
+DB_PASS = os.getenv("CONTEXT_DB_PASSWORD")
+if not DB_PASS:
+    raise ValueError("CONTEXT_DB_PASSWORD environment variable required. Set in .env file.")
 
 def get_snapshot(snapshot_id):
     """Fetch snapshot from database"""

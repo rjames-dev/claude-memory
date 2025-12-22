@@ -19,17 +19,27 @@ import psycopg2
 from psycopg2.extras import Json
 
 # Database configuration
-DB_CONFIG = {
-    'host': 'localhost',
-    'port': 5435,  # Docker mapped port for claude-context-db
-    'database': 'claude_memory',
-    'user': 'memory_admin',
-    'password': os.getenv('CONTEXT_DB_PASSWORD', 'RvnK7z05jIlgo4FIf4dvpvWhSl4lnOtWQgH0a9gEzVE=')
-}
+def get_db_config():
+    """Get database configuration from environment variables."""
+    password = os.getenv('CONTEXT_DB_PASSWORD')
+    if not password:
+        raise ValueError(
+            "CONTEXT_DB_PASSWORD environment variable required.\n"
+            "Set in .env file and ensure it's loaded."
+        )
+
+    return {
+        'host': os.getenv('POSTGRES_HOST', 'localhost'),
+        'port': int(os.getenv('POSTGRES_HOST_PORT', '5435')),
+        'database': os.getenv('POSTGRES_DB', 'claude_memory'),
+        'user': os.getenv('POSTGRES_USER', 'memory_admin'),
+        'password': password
+    }
 
 def get_db_connection():
     """Get database connection."""
-    return psycopg2.connect(**DB_CONFIG)
+    config = get_db_config()
+    return psycopg2.connect(**config)
 
 def find_agent_transcripts(session_directory: str, min_size_bytes: int = 512) -> List[str]:
     """

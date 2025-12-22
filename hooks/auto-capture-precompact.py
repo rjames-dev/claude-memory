@@ -110,12 +110,16 @@ def get_snapshot_id_for_session(session_id):
         import os
 
         # Database configuration (same as agent_capture module)
+        db_password = os.getenv('CONTEXT_DB_PASSWORD')
+        if not db_password:
+            raise ValueError("CONTEXT_DB_PASSWORD environment variable required")
+
         conn = psycopg2.connect(
-            host='localhost',
-            port=5435,
-            database='claude_memory',
-            user='memory_admin',
-            password=os.getenv('CONTEXT_DB_PASSWORD', 'RvnK7z05jIlgo4FIf4dvpvWhSl4lnOtWQgH0a9gEzVE=')
+            host=os.getenv('POSTGRES_HOST', 'localhost'),
+            port=int(os.getenv('POSTGRES_HOST_PORT', '5435')),
+            database=os.getenv('POSTGRES_DB', 'claude_memory'),
+            user=os.getenv('POSTGRES_USER', 'memory_admin'),
+            password=db_password
         )
 
         cur = conn.cursor()
