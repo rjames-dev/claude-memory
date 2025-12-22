@@ -77,8 +77,8 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 □ Configured .env (CLAUDE_WORKSPACE_ROOT + password)
 □ Started Docker containers
 □ Verified installation (API responds)
-□ (Optional) Set up MCP tools
-□ (Optional) Configure auto-capture hooks
+□ Configure auto-capture hooks (REQUIRED for automatic capture feature)
+□ (Optional) Set up MCP search tools
 ```
 
 ### 1. Clone Repository
@@ -194,24 +194,42 @@ curl http://localhost:3200/api/stats
 # }
 ```
 
-### 5. Choose Your Integration (Optional)
+### 5. Set Up Automatic Capture (Required for Key Feature)
 
-You have **three independent options** for using claude-memory. Pick what fits your workflow:
+**⚠️ IMPORTANT:** The "Automatic Capture" feature (highlighted in the features list above) requires configuring hooks. Without this step, captures will only work via manual API calls.
+
+#### Quick Hook Setup (2 minutes)
+
+```bash
+cd hooks
+./setup-hooks.sh
+```
+
+This script will:
+- ✅ Detect your OS and Claude Code config location
+- ✅ Check if processor is running
+- ✅ Backup existing settings
+- ✅ Configure PreCompact hook in `~/.claude/settings.json`
+
+**After setup:**
+- Work normally in Claude Code
+- When context fills up (~90%), conversations automatically save to memory
+- Zero manual effort required!
+
+**Detailed instructions:** See [hooks/README.md](./hooks/README.md)
+
+---
+
+### 6. Optional Integrations
+
+You can enhance claude-memory with these additional integrations:
 
 | Integration | What It Does | Setup Required | Best For |
 |-------------|--------------|----------------|----------|
-| **Auto-Capture Hooks** | Automatically saves sessions when auto-compact triggers | Configure hooks in `~/.claude/settings.json` | Set-and-forget automation |
 | **MCP Search Tools** | Let Claude search your memory from within conversations | Install MCP server + configure | Interactive memory queries |
 | **Manual API Calls** | Call capture API directly | None (just Docker running) | Custom integrations, scripts |
 
-**You can use:**
-- ✅ Hooks only (auto-capture, no search)
-- ✅ MCP only (manual capture, can search)
-- ✅ Both (auto-capture + search)
-- ✅ Neither (API-only via curl/scripts)
-
 **Setup guides:**
-- **Hooks:** See [hooks/README.md](./hooks/README.md)
 - **MCP Tools:** See [MCP-SETUP.md](./MCP-SETUP.md)
 - **API:** See "API Reference" section below
 
@@ -299,23 +317,26 @@ OLLAMA_HOST_PORT=11435   # Instead of 11434
 
 ## Usage
 
-### Automatic Capture (Recommended)
+### Automatic Capture (Default Workflow)
 
-Set up Claude Code hooks to automatically capture sessions:
+If you completed Step 5 (hook setup), automatic capture is already working!
 
-1. Configure hooks in `~/.claude/settings.json`:
-```json
-{
-  "hooks": {
-    "PreCompact": "/path/to/claude-memory/hooks/auto-capture-precompact.py",
-    "PostCompact": "/path/to/claude-memory/hooks/post-compact-capture.py"
-  }
-}
+**How it works:**
+1. Work normally in Claude Code (no special commands needed)
+2. When context fills up (~90%), PreCompact hook automatically triggers
+3. Conversation is captured, summarized, and stored in the database
+4. Continue working with full memory preserved
+
+**Verify it's working:**
+```bash
+# Check recent captures
+curl http://localhost:3200/api/stats
+
+# View capture log
+tail -5 ~/.claude/memory-captures.jsonl | jq .
 ```
 
-2. Work normally in Claude Code
-3. When auto-compact triggers, session is automatically saved
-4. View captures: `curl http://localhost:3200/api/stats`
+**If hooks aren't set up yet:** See Step 5 in the Quick Start section above, or [hooks/README.md](./hooks/README.md) for detailed instructions.
 
 See [Phase 6A troubleshooting](./dev-docs/testing/TROUBLESHOOTING-MEM-CAPTURE.md) for common issues.
 
