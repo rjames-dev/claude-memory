@@ -84,7 +84,8 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 □ Verified installation (API responds)
 □ Installed Python dependencies (pip3 install -r requirements.txt)
 □ Configure auto-capture hooks (REQUIRED for automatic capture feature)
-□ Install slash commands (cp .claude/commands/*.md ~/.claude/commands/)
+□ Install slash commands and edit paths
+□ (Optional) Configure enhanced summaries (API key + requirements-enhance.txt)
 □ (Optional) Set up MCP search tools
 ```
 
@@ -247,12 +248,36 @@ mkdir -p ~/.claude/commands
 
 # Install mem-enhance-summary command
 cp .claude/commands/mem-enhance-summary.md ~/.claude/commands/
+
+# IMPORTANT: Edit the path in the installed command
+nano ~/.claude/commands/mem-enhance-summary.md
+# Find line: python3 /path/to/claude-memory/enhance-summary.py "$@"
+# Replace /path/to/claude-memory/ with your actual installation path
+# Example: python3 /Users/yourname/code/claude-memory/enhance-summary.py "$@"
 ```
 
-**After restart, you'll have:**
-- `/mem-enhance-summary <id>` - Generate detailed summaries using Claude Sonnet 4.5
+**For enhanced summaries (optional premium feature):**
 
-**Note:** This is separate from MCP tools. See [Optional Integrations](#8-optional-integrations) for MCP setup.
+If you want to use the `/mem-enhance-summary` command:
+
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements-enhance.txt
+   ```
+
+2. **Get Anthropic API key:**
+   - Visit: https://console.anthropic.com/
+   - Generate an API key
+
+3. **Add to .env:**
+   ```bash
+   echo "ANTHROPIC_API_KEY='sk-ant-your-key-here'" >> .env
+   ```
+
+**After restart, you'll have:**
+- `/mem-enhance-summary <id>` - Generate detailed summaries using Claude Sonnet 4.5 (~$0.15-0.25 each)
+
+**Note:** This is an optional premium feature. Standard Ollama summaries (free, offline) work without this setup.
 
 ---
 

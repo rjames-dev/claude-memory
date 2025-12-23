@@ -73,7 +73,19 @@ Or I can help you find which snapshot to enhance:
 **Arguments:**
 - `snapshot_id` (required): The snapshot ID to enhance
 
-Execute:
-python3 /Users/jamesmba/Data/00\ GITHUB/Code/claude-memory/enhance-summary.py "$@"
+**Prerequisites:**
+- Install dependencies: `pip install -r requirements-enhance.txt`
+- Configure API key in .env: `ANTHROPIC_API_KEY=sk-ant-...`
+- Edit the path below to match your installation location
 
-**Note:** This is a POC (Proof of Concept) feature. The enhanced summary will overwrite the existing summary.
+Execute:
+python3 /path/to/claude-memory/enhance-summary.py "$@"
+
+**Installation Instructions:**
+After copying this command to ~/.claude/commands/, edit the path above:
+1. Open: ~/.claude/commands/mem-enhance-summary.md
+2. Replace: /path/to/claude-memory/
+3. With: Your actual installation path (e.g., /Users/yourname/code/claude-memory/)
+4. Save and restart Claude Code
+
+**Note:** This is a premium feature. The enhanced summary will overwrite the existing summary.
