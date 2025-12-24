@@ -129,6 +129,207 @@ async function searchMemoryByText(query, projectPath = null, limit = 5, client) 
   return result.rows;
 }
 
+// ============================================================================
+// RAW MESSAGE SEARCH - Phase 8
+// ============================================================================
+
+/**
+ * Search raw conversation messages for specific content
+ * Searches full JSONB content including tool results, code snippets, file contents
+ */
+async function searchRawMessages(query, searchMode = 'contains', messageTypes = ['user', 'assistant', 'tool_result'], projectPath = null, limit = 5) {
+  const client = await pool.connect();
+
+  try {
+    // Build search condition based on mode
+    let searchCondition;
+    let searchQuery = query;
+
+    if (searchMode === 'exact') {
+      // Case-sensitive exact match
+      searchCondition = `raw_context::text LIKE $1`;
+      searchQuery = `%${query}%`;
+    } else if (searchMode === 'regex') {
+      // Regular expression match
+      searchCondition = `raw_context::text ~ $1`;
+      // Don't modify query - use as-is for regex
+    } else {
+      // Default: case-insensitive contains
+      searchCondition = `raw_context::text ILIKE $1`;
+      searchQuery = `%${query}%`;
+    }
+
+    // Query to find matching snapshots and extract matching messages
+    let sql = `
+      WITH matching_snapshots AS (
+        SELECT
+          id,
+          timestamp,
+          project_path,
+          summary,
+          raw_context
+        FROM context_snapshots
+        WHERE ${searchCondition}
+    `;
+
+    const params = [searchQuery];
+
+    if (projectPath) {
+      sql += ` AND project_path = $${params.length + 1}`;
+      params.push(projectPath);
+    }
+
+    sql += `
+        ORDER BY timestamp DESC
+        LIMIT $${params.length + 1}
+      ),
+      extracted_messages AS (
+        SELECT
+          ms.id,
+          ms.timestamp,
+          ms.project_path,
+          ms.summary,
+          jsonb_array_elements(ms.raw_context->'messages') as message
+        FROM matching_snapshots ms
+      )
+      SELECT
+        id,
+        timestamp,
+        project_path,
+        summary,
+        message
+      FROM extracted_messages
+      WHERE message->>'role' = ANY($${params.length + 2}::text[])
+        AND message::text ILIKE $1
+      ORDER BY timestamp DESC
+    `;
+
+    params.push(limit);
+    params.push(messageTypes);
+
+    const result = await client.query(sql, params);
+
+    // Group results by snapshot
+    const bySnapshot = {};
+    result.rows.forEach(row => {
+      if (!bySnapshot[row.id]) {
+        bySnapshot[row.id] = {
+          id: row.id,
+          timestamp: row.timestamp,
+          project_path: row.project_path,
+          summary: row.summary,
+          messages: []
+        };
+      }
+      bySnapshot[row.id].messages.push(row.message);
+    });
+
+    return { snapshots: Object.values(bySnapshot), query };
+
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Extract snippet around match for display
+ */
+function extractSnippet(content, query, contextChars = 200) {
+  if (typeof content !== 'string') {
+    content = JSON.stringify(content);
+  }
+
+  // Find query position (case-insensitive)
+  const lowerContent = content.toLowerCase();
+  const lowerQuery = query.toLowerCase().replace(/%/g, '');
+  const pos = lowerContent.indexOf(lowerQuery);
+
+  if (pos === -1) {
+    // Query not found in this content, return beginning
+    return content.substring(0, contextChars) + (content.length > contextChars ? '...' : '');
+  }
+
+  // Extract context around match
+  const start = Math.max(0, pos - contextChars / 2);
+  const end = Math.min(content.length, pos + lowerQuery.length + contextChars / 2);
+
+  let snippet = content.substring(start, end);
+
+  if (start > 0) snippet = '...' + snippet;
+  if (end < content.length) snippet = snippet + '...';
+
+  return snippet;
+}
+
+/**
+ * Format raw search results for display
+ */
+function formatRawSearchResults(data, originalQuery) {
+  const { snapshots, query } = data;
+
+  if (snapshots.length === 0) {
+    return `No messages found containing: "${originalQuery}"
+
+Try:
+- Broader search terms
+- Check spelling
+- Search summaries with search_memory instead`;
+  }
+
+  let output = `# Raw Message Search Results\n\n`;
+  output += `Query: "${originalQuery}"\n`;
+  output += `Found in ${snapshots.length} snapshot(s)\n\n`;
+  output += `---\n\n`;
+
+  snapshots.forEach(snapshot => {
+    output += `## Snapshot #${snapshot.id}\n`;
+    output += `📅 ${new Date(snapshot.timestamp).toLocaleString()}\n`;
+    output += `📁 ${snapshot.project_path}\n\n`;
+
+    // Show truncated summary
+    const summaryPreview = snapshot.summary.substring(0, 150);
+    output += `**Summary:** ${summaryPreview}${snapshot.summary.length > 150 ? '...' : ''}\n\n`;
+
+    output += `**Matching Messages (${snapshot.messages.length}):**\n\n`;
+
+    // Show first 3 messages
+    snapshot.messages.slice(0, 3).forEach((msg, idx) => {
+      const role = msg.role;
+      let content = '';
+
+      // Extract content from message
+      if (msg.content) {
+        if (typeof msg.content === 'string') {
+          content = msg.content;
+        } else if (Array.isArray(msg.content)) {
+          // Handle structured content (tool results, etc.)
+          content = msg.content.map(item => {
+            if (item.type === 'text') return item.text;
+            if (item.type === 'tool_result') return item.content;
+            return JSON.stringify(item);
+          }).join('\n');
+        } else {
+          content = JSON.stringify(msg.content);
+        }
+      }
+
+      // Extract relevant snippet around query
+      const snippet = extractSnippet(content, query.replace(/%/g, ''), 200);
+
+      output += `${idx + 1}. **${role}:**\n`;
+      output += `\`\`\`\n${snippet}\n\`\`\`\n\n`;
+    });
+
+    if (snapshot.messages.length > 3) {
+      output += `_...and ${snapshot.messages.length - 3} more matching messages_\n\n`;
+    }
+
+    output += `---\n\n`;
+  });
+
+  return output;
+}
+
 /**
  * Get timeline of recent context for a project
  */
@@ -1231,6 +1432,44 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['agent_type'],
         },
       },
+      {
+        name: 'search_raw_messages',
+        description: 'Search full conversation messages including tool results, file contents, and code snippets. Use when summary search doesn\'t provide enough detail. Highly effective for finding specific code, error messages, or implementation details discussed in past sessions.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Text to search for (e.g., "def validateIdentifier", "ANTHROPIC_API_KEY", "docker-compose.yml", "ERROR: connection refused")',
+            },
+            search_mode: {
+              type: 'string',
+              enum: ['contains', 'exact', 'regex'],
+              default: 'contains',
+              description: 'How to match: contains (case-insensitive, default), exact (case-sensitive), or regex (advanced pattern matching)',
+            },
+            message_types: {
+              type: 'array',
+              items: {
+                type: 'string',
+                enum: ['user', 'assistant', 'tool_result']
+              },
+              default: ['user', 'assistant', 'tool_result'],
+              description: 'Which message types to search. Default: all types',
+            },
+            project_path: {
+              type: 'string',
+              description: 'Optional: Filter to specific project (e.g., "Code/claude-memory")',
+            },
+            limit: {
+              type: 'number',
+              default: 5,
+              description: 'Maximum number of snapshots to return (default: 5)',
+            },
+          },
+          required: ['query'],
+        },
+      },
     ],
   };
 });
@@ -1571,6 +1810,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case 'search_raw_messages': {
+        if (!args.query) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'Error: query parameter is required',
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const results = await searchRawMessages(
+          args.query,
+          args.search_mode || 'contains',
+          args.message_types || ['user', 'assistant', 'tool_result'],
+          args.project_path || null,
+          args.limit || 5
+        );
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: formatRawSearchResults(results, args.query),
+            },
+          ],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1597,9 +1867,10 @@ async function main() {
   console.error('========================================');
   console.error('📍 Database:', process.env.DATABASE_URL?.replace(/:[^:]*@/, ':****@'));
   console.error('');
-  console.error('🔧 Available Tools (12):');
+  console.error('🔧 Available Tools (13):');
   console.error('   Core Tools:');
   console.error('   - search_memory (semantic similarity)');
+  console.error('   - search_raw_messages (full message content - Phase 8)');
   console.error('   - get_timeline (chronological view)');
   console.error('   - get_snapshot (detailed snapshot)');
   console.error('');
