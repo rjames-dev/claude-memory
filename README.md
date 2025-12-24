@@ -606,6 +606,39 @@ python3 enhance-summary.py <snapshot_id>
 
 ---
 
+## Tutorials
+
+### SQL Query with LLM Formatting
+
+Learn how to query raw conversation data directly from PostgreSQL and format results beautifully using LLM assistance.
+
+**📚 Tutorial:** [tutorials/sql-query-with-llm-formatting.md](./tutorials/sql-query-with-llm-formatting.md)
+
+**What You'll Learn:**
+- Query raw conversation JSONB data using SQL
+- Format SQL results for user-friendly presentation
+- Compare token costs: MCP tools vs SQL vs file reads
+- Write complex JSONB queries for custom reports
+- Choose the right approach for different scenarios
+
+**Real-World Example:**
+Based on an actual session where we found Phase 8 token consumption discussion details:
+- **SQL + LLM formatting:** ~2,000 tokens
+- **Reading planning docs:** ~8,000 tokens
+- **Traditional grep+read:** ~13,500 tokens
+- **Savings: 75-85% reduction**
+
+**Key Features:**
+- ✅ Step-by-step workflow with actual queries
+- ✅ 6 reusable SQL query templates
+- ✅ LLM formatting best practices
+- ✅ Performance optimization tips
+- ✅ Advanced use cases (timeline reports, error analysis)
+
+**Time:** 10-15 minutes | **Difficulty:** Intermediate
+
+---
+
 ## Maintenance
 
 ### Viewing Logs
@@ -1000,6 +1033,6 @@ MIT License - See [LICENSE](./LICENSE) for details
 
 ---
 
-**Last Updated:** 2025-12-19
-**Version:** Phase 6B (Portability & Deployment Ready)
+**Last Updated:** 2025-12-23
+**Version:** Phase 8 (Raw Message Search + Tutorials)
 **Status:** Production Ready ✅
