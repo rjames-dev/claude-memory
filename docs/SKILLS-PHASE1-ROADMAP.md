@@ -1,10 +1,10 @@
 # Skills System - Phase 1 Implementation Roadmap
 
-**Phase:** Foundation (Weeks 1-2)
+**Phase:** Foundation (Weeks 1-2 of 4-week implementation)
 **Goal:** Basic skill storage, manual creation, and simple execution
 **Status:** Planning
 **Started:** TBD
-**Target Completion:** TBD
+**Target Completion:** End of Week 2
 
 ---
 
@@ -14,19 +14,22 @@
 
 A minimal viable skills system that allows:
 1. **Manual skill creation** via `/mem-skills-create` command
-2. **Skill storage** in PostgreSQL with metadata
-3. **Basic execution** of bash script skills with user approval
+2. **Skill storage** in PostgreSQL (same database as claude-memory)
+3. **Basic execution** of bash script skills with trust-based approval
 4. **Skill listing** and inspection via `/mem-skills` and `/mem-skills-show`
 5. **Simple trigger matching** (exact phrase only, no semantic search yet)
+6. **Script storage** in database (not filesystem)
 
-### What We're NOT Building Yet
+### What We're NOT Building in Phase 1
 
-- ❌ Automatic pattern detection (Phase 3)
 - ❌ Semantic trigger matching (Phase 2)
 - ❌ Tool sequence execution (Phase 2)
 - ❌ Agent spawning (Phase 2)
-- ❌ Skill suggestions based on patterns (Phase 3)
 - ❌ Performance analytics (Phase 2)
+- ❌ Automatic pattern detection (deferred to future)
+- ❌ Skill suggestions based on patterns (deferred to future)
+
+**Note:** Phases 3-4 (Watcher and Self-Learning) are deferred. See `SKILLS-FUTURE-ENHANCEMENTS.md` for details.
 
 ---
 
@@ -88,9 +91,12 @@ Usage:
   python3 create-skill.py --name "git-commit-protocol" \
                            --display-name "Git Commit (Our Protocol)" \
                            --category "git" \
-                           --script-path "/path/to/script.sh" \
+                           --command-type "bash_script" \
+                           --script-content "#!/bin/bash\necho 'Script content here'" \
                            --triggers "commit changes,create commit" \
                            --description "Commits using our protocol"
+
+Note: Script content is stored in the database, not on filesystem.
 """
 
 import argparse
@@ -149,11 +155,11 @@ def create_skill(args):
         # Insert command definition
         cur.execute("""
             INSERT INTO skills_commands
-            (agent_id, command_type, script_path, parameters, prerequisites)
+            (agent_id, command_type, script_content, parameters, prerequisites)
             VALUES (%s, 'bash_script', %s, %s, %s)
         """, (
             skill_id,
-            args.script_path,
+            args.script_content,
             json.dumps(args.parameters or {}),
             json.dumps(args.prerequisites or {})
         ))
@@ -163,7 +169,7 @@ def create_skill(args):
         print(f"✅ Skill created: {args.name} (ID: {skill_id})")
         print(f"   Triggers: {len(triggers)}")
         print(f"   Type: bash_script")
-        print(f"   Script: {args.script_path}")
+        print(f"   Script length: {len(args.script_content)} chars (stored in database)")
 
         return skill_id
 
@@ -451,7 +457,7 @@ def show_skill(skill_name):
 
     # Get command
     cur.execute("""
-        SELECT command_type, script_path, command_definition, parameters, prerequisites
+        SELECT command_type, script_content, command_definition, parameters, prerequisites
         FROM skills_commands
         WHERE agent_id = (SELECT id FROM skills_agents WHERE agent_name = %s)
         ORDER BY version DESC
@@ -480,10 +486,11 @@ def show_skill(skill_name):
         print(f"  - \"{trigger[0]}\" ({trigger[1]}, threshold: {trigger[2]})")
 
     if command:
-        cmd_type, script, definition, params, prereqs = command
+        cmd_type, script_content, definition, params, prereqs = command
         print(f"\nCommand Type: {cmd_type}")
-        if script:
-            print(f"  Script: {script}")
+        if script_content:
+            print(f"  Script: {len(script_content)} chars (stored in database)")
+            print(f"  Preview: {script_content[:100]}{'...' if len(script_content) > 100 else ''}")
         if definition:
             print(f"  Definition: {json.dumps(definition, indent=2)}")
         if params:
@@ -569,7 +576,7 @@ def check_prerequisites(prereqs):
 
     return True, None
 
-def execute_bash_skill(skill_id, skill_name, script_path, params, prereqs, user_request):
+def execute_bash_skill(skill_id, skill_name, script_content, params, prereqs, user_request):
     """Execute a bash script skill"""
 
     print(f"\n⚡ Executing skill: {skill_name}")
@@ -583,12 +590,21 @@ def execute_bash_skill(skill_id, skill_name, script_path, params, prereqs, user_
             'error': error
         }
 
+    # Write script to temp file
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+        f.write(script_content)
+        temp_script_path = f.name
+
+    # Make executable
+    os.chmod(temp_script_path, 0o755)
+
     # Execute script
     start_time = time.time()
 
     try:
         result = subprocess.run(
-            [script_path] + [str(v) for v in params.values()],
+            [temp_script_path] + [str(v) for v in params.values()],
             capture_output=True,
             text=True,
             timeout=300  # 5 minute timeout
@@ -626,6 +642,9 @@ def execute_bash_skill(skill_id, skill_name, script_path, params, prereqs, user_
             'outcome': 'timeout',
             'error': 'Execution timeout'
         }
+    finally:
+        # Cleanup temp file
+        os.unlink(temp_script_path)
 
 def log_performance(skill_id, outcome, execution_time_ms, error, user_request):
     """Log execution to performance log"""
@@ -811,8 +830,11 @@ After Phase 1 is complete, Phase 2 will add:
 3. **Agent spawning**
 4. **Performance analytics** (/mem-skills-stats)
 5. **Export/import** functionality
+6. **Natural Language Skill Creation** (describe skill in plain language)
 
-See `SKILLS-PHASE2-ROADMAP.md` (to be created)
+See `SKILLS-PHASE2-ROADMAP.md` for details.
+
+**Note:** Phases 3-4 (Watcher and Self-Learning) are deferred for future consideration. See `SKILLS-FUTURE-ENHANCEMENTS.md` for those features.
 
 ---
 
@@ -823,15 +845,18 @@ See `SKILLS-PHASE2-ROADMAP.md` (to be created)
 1. **Database connection configuration**
    - Where should connection params be stored?
    - Use existing claude-memory database or separate?
-   - **Decision:** Use existing claude_memory database
+   - **Decision:** Use existing claude_memory database (same database)
 
 2. **Skill script storage**
    - Store scripts in database or filesystem?
-   - **Decision:** Filesystem (store path in DB, scripts in `~/.claude-memory/skills/scripts/`)
+   - **Decision:** Database (store script content in `script_content` column)
+   - **Rationale:** Better portability, easier export/import, all skill data in one place
+   - **Implementation:** Write to temp file during execution, cleanup after
 
 3. **User approval UI**
    - How to prompt for approval in CLI?
-   - **Decision:** Use Python `input()` for now, enhance in Phase 2
+   - **Decision:** Trust-based approval (low trust = ask, high trust = auto-execute)
+   - **Implementation:** Use Python `input()` for approval prompts, enhance with trust levels
 
 ### Decisions Made
 

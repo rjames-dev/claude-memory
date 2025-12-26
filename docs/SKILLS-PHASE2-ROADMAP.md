@@ -1,10 +1,11 @@
 # Skills System - Phase 2 Implementation Roadmap
 
-**Phase:** Intelligence (Weeks 3-4)
-**Goal:** Semantic matching, tool sequences, agent spawning, and performance analytics
+**Phase:** Intelligence (Weeks 3-4 of 4-week implementation)
+**Goal:** Semantic matching, tool sequences, agent spawning, analytics, and natural language skill creation
 **Status:** Planning
 **Prerequisites:** Phase 1 complete
 **Target Duration:** 2 weeks
+**Target Completion:** End of Week 4 (Production-ready Skills System)
 
 ---
 
@@ -12,21 +13,25 @@
 
 ### What We're Building
 
-Advanced skill capabilities that make the system intelligent:
+Advanced skill capabilities that complete the Skills System:
 1. **Semantic trigger matching** - Find skills using embedding similarity, not just exact phrases
 2. **Tool sequence execution** - Execute multi-step workflows (git status → diff → commit)
-3. **Agent spawning** - Skills that launch specialized agents
+3. **Agent spawning** - Skills that launch specialized agents (Explore, Plan, etc.)
 4. **Performance analytics** - Detailed stats via `/mem-skills-stats`
-5. **Export/import** - Share skills across projects
-6. **Skill recommendations** - Proactive skill suggestions during work
+5. **Export/import** - Share skills across projects and users
+6. **Natural Language Skill Creation** - Describe skills in plain language, system generates implementation
 
-### What We're NOT Building Yet
+### What We're NOT Building in Phase 2
 
-- ❌ Automatic pattern detection (Phase 3)
-- ❌ Watcher agent analysis (Phase 3)
-- ❌ End-of-session skill suggestions (Phase 3)
-- ❌ Automatic skill evolution (Phase 4)
-- ❌ Cross-session learning (Phase 4)
+- ❌ Automatic pattern detection (deferred to future)
+- ❌ Watcher agent analysis (deferred to future)
+- ❌ End-of-session skill suggestions (deferred to future)
+- ❌ Automatic skill evolution (deferred to future)
+- ❌ Cross-session learning (deferred to future)
+
+**Note:** Phases 3-4 (Watcher and Self-Learning) are deferred. See `SKILLS-FUTURE-ENHANCEMENTS.md` for details.
+
+**After Phase 2:** Production-ready Skills System with all core capabilities!
 
 ---
 
@@ -1639,11 +1644,45 @@ def import_skills(input_file, global_only=False, dry_run=False):
 
 ---
 
+### Enhancement: Natural Language Skill Creation
+
+**Goal:** Create skills by describing them in plain language (Optional milestone)
+
+**Concept:**
+```bash
+$ /mem-skills-create-nl "I want a skill that checks database health"
+
+🤖 Generating skill...
+
+Created: check-database-health
+- Category: database
+- Triggers: "check db health", "verify postgres"
+- Type: bash_script
+- Parameters: database_name
+
+[View Details] [Create] [Cancel]
+```
+
+**Implementation:**
+- Use Claude API to generate skill definition from description
+- Parse natural language into: name, triggers, script/sequence, parameters
+- User reviews and edits before creating
+- Falls back to `create-skill.py` for actual creation
+
+**Files:**
+- `create-skill-nl.py` - Natural language skill generator
+- Requires `ANTHROPIC_API_KEY` environment variable
+- Cost: ~$0.01-0.02 per skill generation
+
+This is an optional enhancement that can be added during or after Phase 2 based on user feedback.
+
+---
+
 ## Success Criteria
 
 Phase 2 is complete when:
 
-- [ ] All 6 milestones delivered
+- [ ] All 6 core milestones delivered
 - [ ] Semantic matching works accurately
 - [ ] Tool sequences execute correctly
 - [ ] Agents can be spawned from skills
@@ -1651,6 +1690,7 @@ Phase 2 is complete when:
 - [ ] Export/import works reliably
 - [ ] Documentation is complete
 - [ ] At least 5 real skills using new features created
+- [ ] (Optional) Natural language skill creation works
 
 ---
 
@@ -1678,16 +1718,20 @@ claude-memory/
 
 ---
 
-## Next Steps (Phase 3)
+## Future Enhancements (Deferred)
 
-After Phase 2, we'll add:
+After Phase 2 delivers the production-ready Skills System, potential future enhancements include:
 
-1. **Watcher agent** - Automatic pattern detection
+1. **Watcher agent** - Automatic pattern detection from conversations
 2. **End-of-session suggestions** - "Create skill for this?"
-3. **Pattern scoring** - Confidence calculation
+3. **Pattern scoring** - Confidence calculation for skill candidates
 4. **Skill candidates view** - `/mem-skills-suggest`
+5. **Automatic skill evolution** - Skills improve based on feedback
+6. **Cross-session learning** - Learn patterns across multiple sessions
 
-See `SKILLS-PHASE3-ROADMAP.md` (to be created)
+**Decision:** These features are deferred to allow focus on the core Skills System foundation.
+
+See `SKILLS-FUTURE-ENHANCEMENTS.md` for detailed specifications of deferred features.
 
 ---
 

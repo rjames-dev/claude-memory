@@ -153,7 +153,7 @@ CREATE TABLE skills_commands (
 
     -- Execution definitions (one populated based on command_type)
     command_definition JSONB,                    -- For tool_sequence: step-by-step instructions
-    script_path TEXT,                            -- For bash_script: path to script file
+    script_content TEXT,                         -- For bash_script: script stored in database
     agent_config JSONB,                          -- For agent_spawn: agent configuration
 
     -- Parameters (what inputs does this skill need?)
@@ -185,7 +185,7 @@ CREATE INDEX idx_skills_commands_version ON skills_commands(agent_id, version DE
 -- Comments
 COMMENT ON TABLE skills_commands IS 'Executable definitions for skills. Defines HOW to run the skill.';
 COMMENT ON COLUMN skills_commands.command_definition IS 'JSONB: For tool_sequence, contains step-by-step tool calls';
-COMMENT ON COLUMN skills_commands.script_path IS 'For bash_script: absolute path to executable script';
+COMMENT ON COLUMN skills_commands.script_content IS 'For bash_script: script content stored in database (not filesystem)';
 COMMENT ON COLUMN skills_commands.agent_config IS 'For agent_spawn: {agent_type, prompt_template, parameters}';
 COMMENT ON COLUMN skills_commands.parameters IS 'JSONB: Expected parameters with types, defaults, validation';
 COMMENT ON COLUMN skills_commands.prerequisites IS 'JSONB: Conditions that must be met before execution';

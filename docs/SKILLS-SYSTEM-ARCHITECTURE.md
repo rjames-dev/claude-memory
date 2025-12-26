@@ -152,6 +152,15 @@ Transform claude-memory from a **passive archive** into an **active learning sys
 
 ## Database Architecture
 
+**Database Location:** Skills system uses the **same PostgreSQL database** as claude-memory. All skills tables coexist with existing context_snapshots, agent_work, and other claude-memory tables.
+
+**Benefits of shared database:**
+- Simplified deployment (no second database needed)
+- Direct foreign key relationships to context_snapshots
+- Single backup/restore process
+- Consistent connection pooling
+- Easier cross-table analytics
+
 ### Tables Overview
 
 #### Core Tables
@@ -285,7 +294,7 @@ CREATE TABLE skills_commands (
 
     -- Execution definitions (one will be populated based on command_type)
     command_definition JSONB,                    -- For tool sequences
-    script_path TEXT,                            -- For bash/node/python scripts
+    script_content TEXT,                         -- For bash scripts (stored in database)
     agent_config JSONB,                          -- For spawning agents
 
     -- Parameters
@@ -721,7 +730,7 @@ def calculate_confidence_score(pattern):
 ```json
 {
   "command_type": "bash_script",
-  "script_path": "/path/to/script.sh",
+  "script_content": "#!/bin/bash\npsql -d \"$1\" -c 'SELECT version();'",
   "parameters": {
     "database_name": {"type": "string", "required": true}
   },
@@ -731,6 +740,8 @@ def calculate_confidence_score(pattern):
 }
 ```
 
+**Note:** Script content is stored directly in the database (not on filesystem) for portability and easier export/import.
+
 **Execution:**
 ```python
 def execute_bash_skill(skill, args):
@@ -738,11 +749,23 @@ def execute_bash_skill(skill, args):
     if not check_prerequisites(skill['prerequisites']):
         return {"error": "Prerequisites not met"}
 
-    # Build command
-    cmd = f"{skill['script_path']} {args['database_name']}"
+    # Write script to temp file (for execution only)
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+        f.write(skill['script_content'])
+        temp_script_path = f.name
+
+    # Make executable
+    os.chmod(temp_script_path, 0o755)
+
+    # Build command with parameters
+    cmd = f"{temp_script_path} {args['database_name']}"
 
     # Execute via Bash tool
     result = bash_tool.execute(cmd)
+
+    # Cleanup temp file
+    os.unlink(temp_script_path)
 
     # Validate success
     if any(indicator in result for indicator in skill['success_indicators']):
@@ -833,16 +856,40 @@ def execute_agent_spawn(skill, args):
     return {"outcome": "success", "agent_id": result.agent_id}
 ```
 
-### User Approval Flow
+### User Approval Flow with Trust Levels
 
+**Trust Model:**
+- **Low Trust** (new/unproven skills): Always ask user for confirmation
+- **High Trust** (proven skills): Auto-execute after meeting criteria
+
+**Trust Progression:**
+```
+New Skill → Low Trust (0-9 successful uses) → High Trust (10+ successful uses with 90%+ success rate)
+```
+
+**Approval Logic:**
 ```python
 def suggest_skill_to_user(user_request, matched_skill):
     """
-    Present skill to user for approval before execution
+    Present skill to user for approval, or auto-execute if high trust
     """
+    # High trust criteria
+    is_high_trust = (
+        matched_skill['success_count'] >= 10 and
+        matched_skill['success_rate'] >= 90 and
+        matched_skill['confidence_score'] >= 0.8
+    )
+
+    if is_high_trust:
+        # Auto-execute trusted skills (notify user)
+        notify_user(f"✓ Using skill: {matched_skill['display_name']}")
+        return execute_skill(matched_skill)
+
+    # Low trust - require explicit approval
     message = f"""
     🔍 Found skill: '{matched_skill['display_name']}'
        Used {matched_skill['use_count']} times, {matched_skill['success_rate']:.0f}% success rate
+       Trust Level: {'🟢 High' if is_high_trust else '🟡 Low (requires approval)'}
 
        This skill will:
        {format_skill_steps(matched_skill)}
@@ -863,6 +910,16 @@ def suggest_skill_to_user(user_request, matched_skill):
         log_skill_rejection(matched_skill, user_request)
         return None  # Proceed with manual approach
 ```
+
+**Trust Level Indicators:**
+- 🟢 **High Trust**: Auto-execute (10+ successes, 90%+ success rate)
+- 🟡 **Low Trust**: Requires approval (new or inconsistent)
+- 🔴 **Degraded**: Previously high trust, now failing (drops below 80% success rate)
+
+**User Can Override:**
+- Mark skill as "always ask" (disable auto-execute even if high trust)
+- Mark skill as "always execute" (enable auto-execute even if low trust)
+- Disable skill entirely
 
 ---
 
