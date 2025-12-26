@@ -349,9 +349,9 @@ SELECT
     -- Trigger count
     COUNT(DISTINCT st.id) AS trigger_count,
 
-    -- Recent activity (last 7 days)
-    COUNT(spl.id) FILTER (WHERE spl.executed_at > NOW() - INTERVAL '7 days') AS uses_last_7_days,
-    COUNT(spl.id) FILTER (
+    -- Recent activity (last 7 days) - DISTINCT prevents cartesian product overcounting
+    COUNT(DISTINCT spl.id) FILTER (WHERE spl.executed_at > NOW() - INTERVAL '7 days') AS uses_last_7_days,
+    COUNT(DISTINCT spl.id) FILTER (
         WHERE spl.outcome = 'success' AND spl.executed_at > NOW() - INTERVAL '7 days'
     ) AS successes_last_7_days,
 
