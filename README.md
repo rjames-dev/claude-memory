@@ -70,7 +70,11 @@ Skills are automation workflows that Claude can execute on your behalf. They com
 - Category-based insights
 - Project usage breakdown
 
-### Quick Start
+### Installation & Usage
+
+**→ See [Quick Start](#quick-start) below for complete installation instructions (3 commands, 5-10 minutes)**
+
+Once installed, use these commands:
 
 ```bash
 # Search for skills using natural language
