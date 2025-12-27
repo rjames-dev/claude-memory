@@ -25,20 +25,70 @@ import argparse
 import subprocess
 import tempfile
 import time
+import json
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
 
+# Import new executors for Phase 2 Milestone 4
+try:
+    import importlib.util
+    import sys as _sys
+
+    # Load execute-tool-sequence.py
+    spec = importlib.util.spec_from_file_location(
+        "execute_tool_sequence",
+        os.path.join(os.path.dirname(__file__), "execute-tool-sequence.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    ToolSequenceExecutor = module.ToolSequenceExecutor
+    TOOL_SEQUENCE_AVAILABLE = True
+except Exception as e:
+    TOOL_SEQUENCE_AVAILABLE = False
+    print(f"Note: Tool sequences not available: {e}", file=sys.stderr)
+
+try:
+    # Load execute-agent-spawn.py
+    spec = importlib.util.spec_from_file_location(
+        "execute_agent_spawn",
+        os.path.join(os.path.dirname(__file__), "execute-agent-spawn.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    AgentSpawner = module.AgentSpawner
+    AGENT_SPAWN_AVAILABLE = True
+except Exception as e:
+    AGENT_SPAWN_AVAILABLE = False
+    print(f"Note: Agent spawning not available: {e}", file=sys.stderr)
+
 # Database configuration (matches existing claude-memory scripts)
 DB_HOST = os.environ.get('DB_HOST', 'localhost')
 DB_PORT = int(os.environ.get('DB_PORT', '5435'))
+
+# Try to read password from .env file
+def get_db_password():
+    """Get database password from .env file or environment."""
+    password = os.environ.get('CONTEXT_DB_PASSWORD')
+    if password:
+        return password
+
+    # Try reading from .env file
+    env_file = os.path.join(os.path.dirname(__file__), '.env')
+    if os.path.exists(env_file):
+        with open(env_file, 'r') as f:
+            for line in f:
+                if line.startswith('CONTEXT_DB_PASSWORD='):
+                    return line.strip().split('=', 1)[1]
+
+    return 'memory_secure_2024'  # Fallback
 
 DB_CONFIG = {
     'host': DB_HOST,
     'port': DB_PORT,
     'database': 'claude_memory',
     'user': 'memory_admin',
-    'password': os.environ.get('CONTEXT_DB_PASSWORD', 'memory_secure_2024')
+    'password': get_db_password()
 }
 
 
@@ -84,6 +134,7 @@ def get_skill_command(conn, skill_id):
             id,
             command_type,
             script_content,
+            command_definition,
             parameters,
             prerequisites
         FROM skills_commands
@@ -365,9 +416,15 @@ def execute_skill(args):
             return 1
 
         # Validate command type
-        if command['command_type'] != 'bash_script':
+        supported_types = ['bash_script']
+        if TOOL_SEQUENCE_AVAILABLE:
+            supported_types.append('tool_sequence')
+        if AGENT_SPAWN_AVAILABLE:
+            supported_types.append('agent_spawn')
+
+        if command['command_type'] not in supported_types:
             print(f"❌ Unsupported command type: {command['command_type']}", file=sys.stderr)
-            print(f"   Only 'bash_script' is supported in Phase 1", file=sys.stderr)
+            print(f"   Supported types: {', '.join(supported_types)}", file=sys.stderr)
             conn.close()
             return 1
 
@@ -383,12 +440,33 @@ def execute_skill(args):
             print(f"\n🔍 DRY RUN MODE - Would execute:")
             print(f"   Skill: {skill['agent_name']} (ID: {skill['id']})")
             print(f"   Type: {command['command_type']}")
-            print(f"   Script Length: {len(command['script_content'])} characters")
-            print(f"\n   Script Content:")
-            print("   " + "-"*76)
-            for line in command['script_content'].split('\n'):
-                print(f"   {line}")
-            print("   " + "-"*76)
+
+            if command['command_type'] == 'bash_script':
+                print(f"   Script Length: {len(command['script_content'])} characters")
+                print(f"\n   Script Content:")
+                print("   " + "-"*76)
+                for line in command['script_content'].split('\n'):
+                    print(f"   {line}")
+                print("   " + "-"*76)
+            elif command['command_type'] == 'tool_sequence':
+                seq_def = command.get('command_definition', {})
+                steps = seq_def.get('steps', [])
+                print(f"   Sequence Steps: {len(steps)}")
+                print(f"\n   Steps:")
+                for i, step in enumerate(steps, 1):
+                    step_name = step.get('name', f'step_{i}')
+                    tool = step.get('tool', 'unknown')
+                    required = step.get('required', True)
+                    req_str = 'required' if required else 'optional'
+                    print(f"     {i}. {step_name} ({tool}) - {req_str}")
+            elif command['command_type'] == 'agent_spawn':
+                agent_def = command.get('command_definition', {})
+                print(f"   Agent Type: {agent_def.get('agent_type', 'unknown')}")
+                print(f"   Model: {agent_def.get('model', 'sonnet')}")
+                print(f"   Timeout: {agent_def.get('timeout', 300)}s")
+                prompt = agent_def.get('prompt', '')
+                print(f"   Prompt: {prompt[:100]}..." if len(prompt) > 100 else f"   Prompt: {prompt}")
+
             print(f"\n✅ Dry run complete (no execution performed)")
             conn.close()
             return 0
@@ -399,7 +477,60 @@ def execute_skill(args):
         print(f"   Confidence: {skill['confidence_score']}")
         print()
 
-        execution_result = execute_bash_script(command['script_content'])
+        # Execute based on command type
+        if command['command_type'] == 'bash_script':
+            execution_result = execute_bash_script(command['script_content'])
+
+        elif command['command_type'] == 'tool_sequence':
+            sequence_def = command.get('command_definition')
+            if not sequence_def:
+                print(f"❌ Missing command_definition for tool_sequence", file=sys.stderr)
+                conn.close()
+                return 1
+
+            executor = ToolSequenceExecutor(
+                skill_id=skill['id'],
+                sequence_def=sequence_def
+            )
+            result = executor.execute()
+
+            # Convert to standard execution_result format
+            execution_result = {
+                'success': result['success'],
+                'stdout': json.dumps(result.get('step_results', {}), indent=2, default=str),
+                'stderr': result.get('error', ''),
+                'exit_code': 0 if result['success'] else 1,
+                'execution_time_ms': int(result.get('execution_time', 0) * 1000) if 'execution_time' in result else 0,
+                'error_message': result.get('error')
+            }
+
+        elif command['command_type'] == 'agent_spawn':
+            agent_config = command.get('command_definition')
+            if not agent_config:
+                print(f"❌ Missing command_definition for agent_spawn", file=sys.stderr)
+                conn.close()
+                return 1
+
+            spawner = AgentSpawner(
+                skill_id=skill['id'],
+                agent_config=agent_config
+            )
+            result = spawner.spawn()
+
+            # Convert to standard execution_result format
+            execution_result = {
+                'success': result['success'],
+                'stdout': result.get('output', ''),
+                'stderr': result.get('error', ''),
+                'exit_code': result.get('exit_code', 0 if result['success'] else 1),
+                'execution_time_ms': int(result.get('execution_time', 0) * 1000),
+                'error_message': result.get('error')
+            }
+
+        else:
+            print(f"❌ Unsupported command type: {command['command_type']}", file=sys.stderr)
+            conn.close()
+            return 1
 
         # Print output
         if execution_result['stdout']:
