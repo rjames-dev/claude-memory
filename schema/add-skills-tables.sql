@@ -92,7 +92,7 @@ CREATE TABLE skills_triggers (
     match_type VARCHAR(50) DEFAULT 'semantic',   -- "exact", "semantic", "regex"
 
     -- Semantic search (for match_type='semantic')
-    embedding vector(384),                       -- Sentence-transformers/all-MiniLM-L6-v2
+    embedding vector(1024),                      -- Ollama mxbai-embed-large (1024 dims)
     confidence_threshold FLOAT DEFAULT 0.75,     -- Minimum similarity to match (0-1)
 
     -- Context requirements (optional filters)

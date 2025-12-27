@@ -38,7 +38,7 @@ if [ ! -f "$SKILLS_FILE" ]; then
 fi
 
 # Check if database is accessible
-echo -e "${BLUE}[1/4] Checking database connection...${NC}"
+echo -e "${BLUE}[1/5] Checking database connection...${NC}"
 if ! python3 "$PROJECT_ROOT/db_utils.py" > /dev/null 2>&1; then
     echo -e "${RED}❌ Database connection failed${NC}"
     echo ""
@@ -52,7 +52,7 @@ echo -e "${GREEN}✅ Database connection successful${NC}"
 echo ""
 
 # Check if skills tables exist, create if needed
-echo -e "${BLUE}[2/4] Checking skills database schema...${NC}"
+echo -e "${BLUE}[2/5] Checking skills database schema...${NC}"
 
 # Load database password
 if [ -f "$PROJECT_ROOT/.env" ]; then
@@ -65,6 +65,20 @@ TABLE_EXISTS=$(docker exec claude-context-db psql -U memory_admin -d claude_memo
 
 if [ "$TABLE_EXISTS" = "t" ]; then
     echo -e "${GREEN}✅ Skills tables already exist${NC}"
+
+    # Check embedding dimension (should be 1024 for Ollama mxbai-embed-large)
+    CURRENT_DIM=$(docker exec claude-context-db psql -U memory_admin -d claude_memory -tAc "SELECT atttypmod - 4 FROM pg_attribute WHERE attrelid = 'skills_triggers'::regclass AND attname = 'embedding';" 2>/dev/null)
+
+    if [ "$CURRENT_DIM" = "384" ]; then
+        echo "   Fixing embedding dimension (384 → 1024)..."
+        if docker exec -i claude-context-db psql -U memory_admin -d claude_memory < "$PROJECT_ROOT/schema/migrate-skills-embedding-dimension.sql" > /dev/null 2>&1; then
+            echo -e "${GREEN}✅ Embedding dimension migrated to 1024${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Migration had warnings (this is usually OK)${NC}"
+        fi
+    elif [ "$CURRENT_DIM" = "1024" ]; then
+        echo -e "${GREEN}✅ Embedding dimension correct (1024)${NC}"
+    fi
 else
     echo "Skills tables not found. Creating schema..."
 
@@ -85,7 +99,7 @@ fi
 echo ""
 
 # Import skills
-echo -e "${BLUE}[3/4] Importing example skills...${NC}"
+echo -e "${BLUE}[3/5] Importing example skills...${NC}"
 cd "$PROJECT_ROOT"
 
 IMPORT_ARGS=()
