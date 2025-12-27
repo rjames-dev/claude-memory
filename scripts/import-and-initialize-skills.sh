@@ -38,7 +38,7 @@ if [ ! -f "$SKILLS_FILE" ]; then
 fi
 
 # Check if database is accessible
-echo -e "${BLUE}[1/3] Checking database connection...${NC}"
+echo -e "${BLUE}[1/4] Checking database connection...${NC}"
 if ! python3 "$PROJECT_ROOT/db_utils.py" > /dev/null 2>&1; then
     echo -e "${RED}❌ Database connection failed${NC}"
     echo ""
@@ -51,8 +51,41 @@ fi
 echo -e "${GREEN}✅ Database connection successful${NC}"
 echo ""
 
+# Check if skills tables exist, create if needed
+echo -e "${BLUE}[2/4] Checking skills database schema...${NC}"
+
+# Load database password
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    export $(grep CONTEXT_DB_PASSWORD "$PROJECT_ROOT/.env" | xargs)
+fi
+DB_PASSWORD="${CONTEXT_DB_PASSWORD:-memory_secure_2024}"
+
+# Check if skills_agents table exists
+TABLE_EXISTS=$(PGPASSWORD="$DB_PASSWORD" psql -h localhost -p 5435 -U memory_admin -d claude_memory -tAc "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'skills_agents');" 2>/dev/null)
+
+if [ "$TABLE_EXISTS" = "t" ]; then
+    echo -e "${GREEN}✅ Skills tables already exist${NC}"
+else
+    echo "Skills tables not found. Creating schema..."
+
+    if [ ! -f "$PROJECT_ROOT/schema/add-skills-tables.sql" ]; then
+        echo -e "${RED}❌ Schema file not found: schema/add-skills-tables.sql${NC}"
+        exit 1
+    fi
+
+    if PGPASSWORD="$DB_PASSWORD" psql -h localhost -p 5435 -U memory_admin -d claude_memory -f "$PROJECT_ROOT/schema/add-skills-tables.sql" > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ Skills tables created successfully${NC}"
+    else
+        echo -e "${RED}❌ Failed to create skills tables${NC}"
+        echo "   Try running manually:"
+        echo "   PGPASSWORD=\$CONTEXT_DB_PASSWORD psql -h localhost -p 5435 -U memory_admin -d claude_memory -f schema/add-skills-tables.sql"
+        exit 1
+    fi
+fi
+echo ""
+
 # Import skills
-echo -e "${BLUE}[2/3] Importing example skills...${NC}"
+echo -e "${BLUE}[3/4] Importing example skills...${NC}"
 cd "$PROJECT_ROOT"
 
 IMPORT_ARGS=()
@@ -72,7 +105,7 @@ fi
 echo ""
 
 # Generate embeddings
-echo -e "${BLUE}[3/3] Generating embeddings for semantic search...${NC}"
+echo -e "${BLUE}[4/4] Generating embeddings for semantic search...${NC}"
 if python3 generate-trigger-embeddings.py --backfill; then
     echo -e "${GREEN}✅ Embeddings generated successfully${NC}"
 else

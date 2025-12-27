@@ -544,21 +544,25 @@ You can enhance claude-memory with these additional integrations:
 
 **This script will:**
 1. ✅ Check database connection
-2. ✅ Import 9 example skills from `skills/example-skills.json`
-3. ✅ Generate embeddings for semantic search
+2. ✅ Create skills database tables (if needed)
+3. ✅ Import 9 example skills from `skills/example-skills.json`
+4. ✅ Generate embeddings for semantic search
 
 **Expected output:**
 ```
-[1/3] Checking database connection...
+[1/4] Checking database connection...
 ✅ Database connection successful
 
-[2/3] Importing example skills...
+[2/4] Checking skills database schema...
+✅ Skills tables created successfully
+
+[3/4] Importing example skills...
 [1/9] ✅ Imported: backup-database (ID: 3)
 [2/9] ✅ Imported: check-db-health (ID: 4)
 ...
 [9/9] ✅ Imported: where-am-i (ID: 11)
 
-[3/3] Generating embeddings for semantic search...
+[4/4] Generating embeddings for semantic search...
 ✅ Backfill complete: 41 embeddings generated
 
 ✅ Skills System Initialization Complete!
