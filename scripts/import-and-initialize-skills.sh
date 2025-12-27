@@ -69,8 +69,8 @@ if [ "$TABLE_EXISTS" = "t" ]; then
     # Check embedding dimension (should be 1024 for Ollama mxbai-embed-large)
     CURRENT_DIM=$(docker exec claude-context-db psql -U memory_admin -d claude_memory -tAc "SELECT atttypmod - 4 FROM pg_attribute WHERE attrelid = 'skills_triggers'::regclass AND attname = 'embedding';" 2>/dev/null)
 
-    if [ "$CURRENT_DIM" = "384" ]; then
-        echo "   Fixing embedding dimension (384 → 1024)..."
+    if [ -n "$CURRENT_DIM" ] && [ "$CURRENT_DIM" != "1024" ]; then
+        echo "   Fixing embedding dimension ($CURRENT_DIM → 1024)..."
         if docker exec -i claude-context-db psql -U memory_admin -d claude_memory < "$PROJECT_ROOT/schema/migrate-skills-embedding-dimension.sql" > /dev/null 2>&1; then
             echo -e "${GREEN}✅ Embedding dimension migrated to 1024${NC}"
         else
