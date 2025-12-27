@@ -295,13 +295,16 @@ This script will:
 
 **Expected time:** 5-10 minutes for complete first-time setup
 
-**Two-Step Process:**
+**Three-Step Process:**
 ```bash
 # Step 1: Start the system
 docker-compose up -d                          # 2-3 minutes (pulls images, starts containers)
 
 # Step 2: Load example skills
 ./scripts/import-and-initialize-skills.sh     # 1-2 minutes (imports 9 skills + embeddings)
+
+# Step 3: Install slash commands
+./scripts/install-commands.sh                 # <1 minute (installs 13 /mem-* commands)
 ```
 
 After this, follow the detailed installation steps below if you need more control.
@@ -314,12 +317,11 @@ After this, follow the detailed installation steps below if you need more contro
 □ Prerequisites verified (Docker, Python 3, Node.js if using MCP)
 □ Cloned repository to permanent location
 □ Configured .env (CLAUDE_WORKSPACE_ROOT + password)
-□ Started Docker containers
-□ Verified installation (API responds)
+□ Started Docker containers (docker-compose up -d)
 □ Installed Python dependencies (pip3 install -r requirements.txt)
+□ Initialize Skills System (./scripts/import-and-initialize-skills.sh)
+□ Install slash commands (./scripts/install-commands.sh)
 □ Configure auto-capture hooks (REQUIRED for automatic capture feature)
-□ Install slash commands and edit paths
-□ Initialize Skills System (REQUIRED for skills functionality)
 □ (Optional) Configure enhanced summaries (API key + requirements-enhance.txt)
 □ (Optional) Set up MCP search tools
 ```

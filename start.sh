@@ -330,8 +330,10 @@ if [ "$LOADED_SKILLS" -eq 0 ]; then
     echo ""
 fi
 
-echo "3️⃣  ${BOLD}Install Claude Code Slash Commands${NC} (1 minute)"
-echo "   See README section: 'Install Slash Commands'"
+echo "3️⃣  ${BOLD}Install Slash Commands${NC} (<1 minute)"
+echo "   ${BLUE}./scripts/install-commands.sh${NC}"
+echo ""
+echo "   This installs 13 /mem-* commands globally."
 echo ""
 
 echo "4️⃣  ${BOLD}Configure Auto-Capture Hooks${NC} (2 minutes)"
@@ -341,7 +343,7 @@ echo ""
 echo "5️⃣  ${BOLD}Start Using Claude Memory!${NC}"
 echo "   • Open Claude Code in a project under: $CLAUDE_WORKSPACE_ROOT"
 echo "   • Try: ${BLUE}/mem-skills${NC}"
-echo "   • Try: ${BLUE}/mem-search \"your query\"${NC}"
+echo "   • Try: ${BLUE}/mem-skills-search \"database\"${NC}"
 echo ""
 
 echo "========================================================================"
