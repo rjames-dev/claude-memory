@@ -56,7 +56,7 @@ echo -e "${BLUE}[2/4] Checking skills database schema...${NC}"
 
 # Load database password
 if [ -f "$PROJECT_ROOT/.env" ]; then
-    export $(grep CONTEXT_DB_PASSWORD "$PROJECT_ROOT/.env" | xargs)
+    export $(grep "^CONTEXT_DB_PASSWORD=" "$PROJECT_ROOT/.env" | grep -v "^#" | xargs)
 fi
 DB_PASSWORD="${CONTEXT_DB_PASSWORD:-memory_secure_2024}"
 
