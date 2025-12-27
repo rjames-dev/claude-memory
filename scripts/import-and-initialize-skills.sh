@@ -61,7 +61,7 @@ fi
 DB_PASSWORD="${CONTEXT_DB_PASSWORD:-memory_secure_2024}"
 
 # Check if skills_agents table exists
-TABLE_EXISTS=$(PGPASSWORD="$DB_PASSWORD" psql -h localhost -p 5435 -U memory_admin -d claude_memory -tAc "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'skills_agents');" 2>/dev/null)
+TABLE_EXISTS=$(docker exec claude-context-db psql -U memory_admin -d claude_memory -tAc "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'skills_agents');" 2>/dev/null)
 
 if [ "$TABLE_EXISTS" = "t" ]; then
     echo -e "${GREEN}✅ Skills tables already exist${NC}"
@@ -73,12 +73,12 @@ else
         exit 1
     fi
 
-    if PGPASSWORD="$DB_PASSWORD" psql -h localhost -p 5435 -U memory_admin -d claude_memory -f "$PROJECT_ROOT/schema/add-skills-tables.sql" > /dev/null 2>&1; then
+    if docker exec -i claude-context-db psql -U memory_admin -d claude_memory < "$PROJECT_ROOT/schema/add-skills-tables.sql" > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Skills tables created successfully${NC}"
     else
         echo -e "${RED}❌ Failed to create skills tables${NC}"
         echo "   Try running manually:"
-        echo "   PGPASSWORD=\$CONTEXT_DB_PASSWORD psql -h localhost -p 5435 -U memory_admin -d claude_memory -f schema/add-skills-tables.sql"
+        echo "   docker exec -i claude-context-db psql -U memory_admin -d claude_memory < schema/add-skills-tables.sql"
         exit 1
     fi
 fi
