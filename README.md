@@ -275,39 +275,82 @@ The Skills System is designed for speed:
 
 ## Quick Start
 
-### 🚀 Easy Startup (First-Time Setup)
+### Step 1: Validate Your Setup
 
 **New to Claude Memory? Start here!**
 
-Run the interactive setup guide to check your configuration:
+Run the interactive setup validation script:
 
 ```bash
 ./start.sh
 ```
 
-This script will:
-1. ✅ Check all prerequisites (Docker, Python, Node.js)
-2. ✅ Validate your .env configuration
-3. ✅ Explain the workspace concept and where to install Claude Memory
-4. ✅ Check Docker containers status
-5. ✅ Verify Skills System readiness
-6. ✅ Provide clear next steps with commands to run
+**This script checks:**
+1. ✅ All prerequisites (Docker, Python, Node.js)
+2. ✅ Your .env configuration (passwords, API keys, workspace)
+3. ✅ Docker containers status
+4. ✅ Skills System readiness
+5. ✅ Provides clear next steps with exact commands to run
 
-**Expected time:** 5-10 minutes for complete first-time setup
+**What it does NOT do:** Make any changes - it only validates and guides you.
 
-**Three-Step Process:**
+---
+
+### Step 2: Install the System
+
+**Three-command installation** (5-10 minutes total):
+
 ```bash
-# Step 1: Start the system
-docker-compose up -d                          # 2-3 minutes (pulls images, starts containers)
+# 1. Start Docker containers (2-3 minutes)
+docker-compose up -d
 
-# Step 2: Load example skills
-./scripts/import-and-initialize-skills.sh     # 1-2 minutes (imports 9 skills + embeddings)
+# 2. Load example skills (3-5 minutes first run, includes model download)
+./scripts/import-and-initialize-skills.sh
 
-# Step 3: Install slash commands
-./scripts/install-commands.sh                 # <1 minute (installs 13 /mem-* commands)
+# 3. Install slash commands (<1 minute)
+./scripts/install-commands.sh
 ```
 
-After this, follow the detailed installation steps below if you need more control.
+**What gets installed:**
+- ✅ PostgreSQL database with pgvector extension
+- ✅ Ollama for AI embeddings (mxbai-embed-large model)
+- ✅ Node.js processor for auto-capture
+- ✅ 9 example skills with semantic search
+- ✅ 13 /mem-* slash commands globally
+
+---
+
+### Step 3: Start Using Claude Memory
+
+**Basic usage:**
+
+```bash
+# List all available skills
+/mem-skills
+
+# Search for skills semantically
+/mem-skills-search "check database health"
+
+# View skill performance stats
+/mem-skills-stats --all
+
+# Search your conversation history
+/mem-search "authentication implementation"
+
+# View project timeline
+/mem-timeline Code/my-project
+```
+
+**What works immediately:**
+- ✅ Skills System with semantic search
+- ✅ All /mem-* slash commands
+- ✅ Manual memory capture via API
+
+**Next step:** Configure auto-capture hooks (see detailed installation below) for automatic conversation saving.
+
+---
+
+**Need more control?** Follow the detailed installation steps below for customization options.
 
 ---
 
