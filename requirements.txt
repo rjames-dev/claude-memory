@@ -3,3 +3,9 @@
 
 # Required for hooks/auto-capture-precompact.py
 requests>=2.31.0
+
+# Required for database access (all skills scripts, db_utils.py)
+psycopg2-binary>=2.9.0
+
+# Required for snapshot embeddings (generate_snapshot_embeddings.py)
+sentence-transformers>=2.2.0
