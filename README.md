@@ -279,9 +279,40 @@ The Skills System is designed for speed:
 
 ## Quick Start
 
+### Step 0: Configure Environment
+
+**First-time setup** - Create and configure your `.env` file:
+
+```bash
+# Copy the environment template
+cp .env.example .env
+
+# Edit .env and set these REQUIRED values:
+# 1. CONTEXT_DB_PASSWORD - Generate with: openssl rand -base64 32
+# 2. CLAUDE_WORKSPACE_ROOT - Your workspace directory (e.g., /Users/yourname/workspace)
+
+# Optional:
+# 3. ANTHROPIC_API_KEY - For /mem-enhance-summary feature (premium detailed summaries)
+```
+
+**Quick setup example:**
+```bash
+# macOS/Linux - one-liner to set password
+echo "CONTEXT_DB_PASSWORD=$(openssl rand -base64 32)" >> .env
+
+# Then edit .env to set CLAUDE_WORKSPACE_ROOT to your workspace path
+```
+
+**What these settings do:**
+- **CONTEXT_DB_PASSWORD**: Secures your PostgreSQL database
+- **CLAUDE_WORKSPACE_ROOT**: Where Claude Code runs (all projects under this path get memory)
+- **ANTHROPIC_API_KEY**: Optional - enables detailed 1500-3000 word summaries (~$0.15-0.25 each)
+
+---
+
 ### Step 1: Validate Your Setup
 
-**New to Claude Memory? Start here!**
+**Configuration complete?** Validate everything is ready:
 
 Run the interactive setup validation script:
 
