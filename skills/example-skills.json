@@ -1,0 +1,254 @@
+{
+  "version": "1.0",
+  "exported_at": "2025-12-27T09:52:50.383165",
+  "exported_by": "claude-memory-skills-system",
+  "skill_count": 9,
+  "skills": [
+    {
+      "agent_name": "backup-database",
+      "display_name": "Database Backup (Portable)",
+      "description": "Creates a backup of claude-memory database with timestamp",
+      "category": "maintenance",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "backup database",
+        "backup database",
+        "create db backup"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n# PORTABLE VERSION - dynamically detects database and creates project-specific backups\n\n# Find .env file\nfind_env_file() {\n    local dir=\"$PWD\"\n    while [ \"$dir\" != \"/\" ]; do\n        if [ -f \"$dir/.env\" ]; then\n            echo \"$dir/.env\"\n            return 0\n        fi\n        dir=$(dirname \"$dir\")\n    done\n    return 1\n}\n\nENV_FILE=$(find_env_file)\n\nif [ -z \"$ENV_FILE\" ]; then\n    echo \"❌ .env file not found\"\n    echo \"   Please run this from a project directory\"\n    exit 1\nfi\n\nPROJECT_DIR=$(dirname \"$ENV_FILE\")\nPROJECT_NAME=$(basename \"$PROJECT_DIR\" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\n\n# Source .env file to get database credentials\nset -a\nsource \"$ENV_FILE\" 2>/dev/null || {\n    echo \"❌ Failed to source .env file\"\n    exit 1\n}\nset +a\n\n# Use environment variables with defaults\nDB_USER=\"${POSTGRES_USER:-memory_admin}\"\nDB_NAME=\"${POSTGRES_DB:-claude_memory}\"\n\n# Find database container\nPREFIX=$(echo \"$PROJECT_NAME\" | cut -d'-' -f1)\nDB_CONTAINER=$(docker ps --filter \"name=$PREFIX\" --format \"{{.Names}}\" | grep -E \"db|postgres|mysql\" | head -1)\n\nif [ -z \"$DB_CONTAINER\" ]; then\n    DB_CONTAINER=$(docker ps --format \"{{.Names}}\" | grep -E \"db|postgres|mysql\" | head -1)\nfi\n\nif [ -z \"$DB_CONTAINER\" ]; then\n    echo \"❌ Database container not found\"\n    echo \"   Searched for containers matching: $PREFIX-*db, *postgres*, *mysql*\"\n    exit 1\nfi\n\n# Check if it's PostgreSQL or MySQL\nDB_TYPE=\"\"\nif docker exec \"$DB_CONTAINER\" psql --version > /dev/null 2>&1; then\n    DB_TYPE=\"postgresql\"\nelif docker exec \"$DB_CONTAINER\" mysql --version > /dev/null 2>&1; then\n    DB_TYPE=\"mysql\"\nelse\n    echo \"❌ Unknown database type\"\n    exit 1\nfi\n\n# Backup directory (use first argument or default)\nBACKUP_DIR=\"${1:-$PROJECT_DIR/backups}\"\nTIMESTAMP=$(date +%Y%m%d_%H%M%S)\n\nmkdir -p \"$BACKUP_DIR\"\n\necho \"=== Database Backup ===\"\necho \"Project: $PROJECT_NAME\"\necho \"Container: $DB_CONTAINER\"\necho \"Database: $DB_NAME ($DB_TYPE)\"\necho \"Backup directory: $BACKUP_DIR\"\necho \"\"\n\nBACKUP_FILE=\"$BACKUP_DIR/${PROJECT_NAME}_${DB_NAME}_${TIMESTAMP}.sql.gz\"\n\nif [ \"$DB_TYPE\" = \"postgresql\" ]; then\n    echo \"Creating PostgreSQL backup...\"\n    if docker exec \"$DB_CONTAINER\" pg_dump -U \"$DB_USER\" -d \"$DB_NAME\" 2>/dev/null | gzip > \"$BACKUP_FILE\"; then\n        echo \"✅ Backup created successfully\"\n    else\n        echo \"❌ Backup failed\"\n        rm -f \"$BACKUP_FILE\"\n        exit 1\n    fi\nelif [ \"$DB_TYPE\" = \"mysql\" ]; then\n    echo \"Creating MySQL backup...\"\n    if docker exec \"$DB_CONTAINER\" mysqldump -u \"$DB_USER\" -p\"${MYSQL_PASSWORD}\" \"$DB_NAME\" 2>/dev/null | gzip > \"$BACKUP_FILE\"; then\n        echo \"✅ Backup created successfully\"\n    else\n        echo \"❌ Backup failed\"\n        rm -f \"$BACKUP_FILE\"\n        exit 1\n    fi\nfi\n\necho \"\"\necho \"Backup file: $BACKUP_FILE\"\nls -lh \"$BACKUP_FILE\"\n\necho \"\"\necho \"=== Backup Complete ===\"\necho \"\"\necho \"To restore this backup:\"\nif [ \"$DB_TYPE\" = \"postgresql\" ]; then\n    echo \"  gunzip < $BACKUP_FILE | docker exec -i $DB_CONTAINER psql -U $DB_USER -d $DB_NAME\"\nelif [ \"$DB_TYPE\" = \"mysql\" ]; then\n    echo \"  gunzip < $BACKUP_FILE | docker exec -i $DB_CONTAINER mysql -u $DB_USER -p $DB_NAME\"\nfi\n",
+        "prerequisites": {
+          "docker_running": true
+        }
+      },
+      "metadata": {
+        "use_count": 0,
+        "success_rate": 0.0,
+        "created_at": "2025-12-26T20:48:55.859673+00:00",
+        "updated_at": "2025-12-27T03:24:04.141595+00:00"
+      }
+    },
+    {
+      "agent_name": "check-any-project-volumes",
+      "display_name": "Check Any Project Volumes (Portable)",
+      "description": "Portable volume safety check that works in ANY docker-compose project by detecting volumes dynamically",
+      "category": "monitoring",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "check project volumes",
+        "check this project volumes",
+        "project volume safety",
+        "verify project data"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n\necho \"=== Project Volume Safety Check ===\"\necho \"\"\necho \"Date: $(date)\"\necho \"\"\n\n# Detect current project from docker-compose.yml\nif [ ! -f \"docker-compose.yml\" ]; then\n    echo \"❌ No docker-compose.yml found in current directory\"\n    echo \"   Please run this from a docker-compose project root\"\n    exit 1\nfi\n\n# Extract project name from docker-compose or directory name\nif command -v docker-compose >/dev/null 2>&1; then\n    PROJECT_NAME=$(docker-compose config --services 2>/dev/null | head -1 | cut -d'-' -f1 || basename \"$PWD\" | tr '[:upper:]' '[:lower:]' | tr -d ' ')\nelse\n    PROJECT_NAME=$(basename \"$PWD\" | tr '[:upper:]' '[:lower:]' | tr -d ' ')\nfi\n\necho \"Detected Project: $PROJECT_NAME\"\necho \"Project Directory: $PWD\"\necho \"\"\n\n# Find all volumes for this project\necho \"--- Discovering Project Volumes ---\"\nPROJECT_VOLUMES=$(docker volume ls --filter \"name=$PROJECT_NAME\" --format \"{{.Name}}\")\n\nif [ -z \"$PROJECT_VOLUMES\" ]; then\n    echo \"⚠️  WARNING: No volumes found for project '$PROJECT_NAME'\"\n    echo \"   This may indicate:\"\n    echo \"   • Fresh installation (no volumes created yet)\"\n    echo \"   • Volumes were removed\"\n    echo \"   • Project name mismatch\"\n    echo \"\"\n\n    # Show all volumes to help debug\n    echo \"All available volumes:\"\n    docker volume ls --format \"table {{.Name}}\\t{{.Driver}}\\t{{.Scope}}\"\n    exit 1\nfi\n\necho \"Found $(echo \"$PROJECT_VOLUMES\" | wc -l | xargs) volume(s):\"\necho \"\"\n\n# Analyze each volume\nTOTAL_SIZE=0\nCRITICAL_VOLUMES=()\n\nfor vol in $PROJECT_VOLUMES; do\n    # Get volume details\n    CREATED=$(docker volume inspect \"$vol\" --format \"{{.CreatedAt}}\" 2>/dev/null | cut -d'T' -f1)\n    MOUNTPOINT=$(docker volume inspect \"$vol\" --format \"{{.Mountpoint}}\" 2>/dev/null)\n\n    # Calculate size (this might require sudo on some systems)\n    if [ -n \"$MOUNTPOINT\" ] && [ -d \"$MOUNTPOINT\" ]; then\n        SIZE=$(sudo du -sh \"$MOUNTPOINT\" 2>/dev/null | awk '{print $1}' || echo \"unknown\")\n    else\n        SIZE=\"unknown\"\n    fi\n\n    # Determine if volume is critical (contains database or models)\n    CRITICAL=false\n    if echo \"$vol\" | grep -qi \"db\\|database\\|postgres\\|mysql\\|mongo\"; then\n        CRITICAL=true\n        CRITICAL_VOLUMES+=(\"$vol:Database volume (CRITICAL)\")\n    elif echo \"$vol\" | grep -qi \"ollama\\|model\\|llm\"; then\n        CRITICAL=true\n        CRITICAL_VOLUMES+=(\"$vol:AI models volume (LARGE)\")\n    fi\n\n    # Display\n    if [ \"$CRITICAL\" = true ]; then\n        echo \"📦 CRITICAL: $vol\"\n    else\n        echo \"📁 $vol\"\n    fi\n    echo \"   Created: $CREATED\"\n    echo \"   Size: $SIZE\"\n    echo \"\"\ndone\n\n# Critical volumes summary\nif [ ${#CRITICAL_VOLUMES[@]} -gt 0 ]; then\n    echo \"--- Critical Data Volumes ---\"\n    for vol_info in \"${CRITICAL_VOLUMES[@]}\"; do\n        vol_name=\"${vol_info%%:*}\"\n        vol_desc=\"${vol_info#*:}\"\n        echo \"⚠️  $vol_name\"\n        echo \"   $vol_desc\"\n    done\n    echo \"\"\nfi\n\n# Volume removal warning\necho \"╔════════════════════════════════════════════════════════════════╗\"\necho \"║  ⚠️  ⚠️  ⚠️  VOLUME REMOVAL WARNING  ⚠️  ⚠️  ⚠️               ║\"\necho \"╚════════════════════════════════════════════════════════════════╝\"\necho \"\"\necho \"NEVER run these commands:\"\necho \"  ❌ docker-compose down -v\"\necho \"  ❌ docker volume rm $PROJECT_NAME-*\"\necho \"  ❌ docker volume prune (without checking first)\"\necho \"\"\necho \"These will PERMANENTLY DELETE project data!\"\necho \"\"\n\n# Check if containers are using volumes\necho \"--- Volume Usage ---\"\nfor vol in $PROJECT_VOLUMES; do\n    CONTAINERS=$(docker ps -a --filter volume=\"$vol\" --format \"{{.Names}}\" | head -3)\n    if [ -n \"$CONTAINERS\" ]; then\n        echo \"Volume: $vol\"\n        echo \"  Used by: $CONTAINERS\"\n    fi\ndone\necho \"\"\n\n# Safe operations reminder\necho \"=== Safe Operations ===\"\necho \"✅ Restart: docker-compose restart\"\necho \"✅ Recreate: docker-compose up -d --force-recreate\"\necho \"✅ Stop/Start: docker-compose stop && docker-compose up -d\"\necho \"❌ NEVER: docker-compose down -v\"\necho \"\"\n\necho \"=== Volume Safety Check Complete ===\"",
+        "prerequisites": {
+          "docker_running": true
+        }
+      },
+      "metadata": {
+        "use_count": 1,
+        "success_rate": 100.0,
+        "created_at": "2025-12-26T23:54:47.740105+00:00",
+        "updated_at": "2025-12-26T23:54:59.612633+00:00"
+      }
+    },
+    {
+      "agent_name": "check-db-health",
+      "display_name": "Database Health Check",
+      "description": "Checks PostgreSQL database health with version, size, and snapshot count",
+      "category": "database",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "check database health",
+        "check db health",
+        "database health check",
+        "verify database status"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n# PORTABLE VERSION - dynamically detects database container and credentials\n\n# Find .env file\nfind_env_file() {\n    local dir=\"$PWD\"\n    while [ \"$dir\" != \"/\" ]; do\n        if [ -f \"$dir/.env\" ]; then\n            echo \"$dir/.env\"\n            return 0\n        fi\n        dir=$(dirname \"$dir\")\n    done\n    return 1\n}\n\nENV_FILE=$(find_env_file)\n\nif [ -z \"$ENV_FILE\" ]; then\n    echo \"❌ .env file not found\"\n    echo \"   Please run this from a project directory with database credentials\"\n    exit 1\nfi\n\n# Source .env file to get database credentials\nset -a\nsource \"$ENV_FILE\" 2>/dev/null || {\n    echo \"❌ Failed to source .env file\"\n    exit 1\n}\nset +a\n\n# Use environment variables with defaults\nDB_USER=\"${POSTGRES_USER:-memory_admin}\"\nDB_NAME=\"${POSTGRES_DB:-claude_memory}\"\nDB_PORT=\"${POSTGRES_HOST_PORT:-5432}\"\n\n# Find database container\nPROJECT_NAME=$(basename \"$(dirname \"$ENV_FILE\")\" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\nPREFIX=$(echo \"$PROJECT_NAME\" | cut -d'-' -f1)\n\nDB_CONTAINER=$(docker ps --filter \"name=$PREFIX\" --format \"{{.Names}}\" | grep -E \"db|postgres|mysql\" | head -1)\n\nif [ -z \"$DB_CONTAINER\" ]; then\n    DB_CONTAINER=$(docker ps --format \"{{.Names}}\" | grep -E \"db|postgres|mysql\" | head -1)\nfi\n\nif [ -z \"$DB_CONTAINER\" ]; then\n    echo \"❌ Database container not found\"\n    echo \"   Searched for containers matching: $PREFIX-*db, *postgres*, *mysql*\"\n    exit 1\nfi\n\necho \"=== Database Health Check ===\"\necho \"Container: $DB_CONTAINER\"\necho \"Database: $DB_NAME\"\necho \"User: $DB_USER\"\necho \"\"\n\n# Check if it's PostgreSQL or MySQL\nDB_TYPE=\"\"\nif docker exec \"$DB_CONTAINER\" psql --version > /dev/null 2>&1; then\n    DB_TYPE=\"postgresql\"\nelif docker exec \"$DB_CONTAINER\" mysql --version > /dev/null 2>&1; then\n    DB_TYPE=\"mysql\"\nelse\n    echo \"⚠️  Unknown database type\"\n    DB_TYPE=\"unknown\"\nfi\n\nif [ \"$DB_TYPE\" = \"postgresql\" ]; then\n    echo \"Database Type: PostgreSQL\"\n    echo \"\"\n\n    echo \"--- Version ---\"\n    docker exec \"$DB_CONTAINER\" psql -U \"$DB_USER\" -d \"$DB_NAME\" -c \"SELECT version();\" -t 2>/dev/null || echo \"Unable to get version\"\n    echo \"\"\n\n    echo \"--- Database Size ---\"\n    docker exec \"$DB_CONTAINER\" psql -U \"$DB_USER\" -d \"$DB_NAME\" -c \"SELECT pg_database.datname, pg_size_pretty(pg_database_size(pg_database.datname)) AS size FROM pg_database WHERE datname = '$DB_NAME';\" -t 2>/dev/null || echo \"Unable to get size\"\n    echo \"\"\n\n    echo \"--- Connection Status ---\"\n    if docker exec \"$DB_CONTAINER\" pg_isready -U \"$DB_USER\" -d \"$DB_NAME\" > /dev/null 2>&1; then\n        echo \"✅ Database accepting connections\"\n    else\n        echo \"❌ Database not accepting connections\"\n    fi\n    echo \"\"\n\n    echo \"--- Tables ---\"\n    TABLE_COUNT=$(docker exec \"$DB_CONTAINER\" psql -U \"$DB_USER\" -d \"$DB_NAME\" -t -c \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';\" 2>/dev/null | xargs)\n    echo \"Total tables: $TABLE_COUNT\"\n    echo \"\"\n\n    echo \"--- Active Connections ---\"\n    docker exec \"$DB_CONTAINER\" psql -U \"$DB_USER\" -d \"$DB_NAME\" -c \"SELECT COUNT(*) as active_connections FROM pg_stat_activity WHERE datname = '$DB_NAME';\" -t 2>/dev/null || echo \"Unable to get connection count\"\n    echo \"\"\n\nelif [ \"$DB_TYPE\" = \"mysql\" ]; then\n    echo \"Database Type: MySQL\"\n    echo \"\"\n\n    echo \"--- Version ---\"\n    docker exec \"$DB_CONTAINER\" mysql -u \"$DB_USER\" -p\"$MYSQL_PASSWORD\" -e \"SELECT VERSION();\" 2>/dev/null || echo \"Unable to get version\"\n    echo \"\"\n\n    echo \"--- Database Size ---\"\n    docker exec \"$DB_CONTAINER\" mysql -u \"$DB_USER\" -p\"$MYSQL_PASSWORD\" -e \"SELECT table_schema AS 'Database', ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Size (MB)' FROM information_schema.TABLES WHERE table_schema = '$DB_NAME' GROUP BY table_schema;\" 2>/dev/null || echo \"Unable to get size\"\n    echo \"\"\n\n    echo \"--- Connection Status ---\"\n    if docker exec \"$DB_CONTAINER\" mysqladmin ping -u \"$DB_USER\" -p\"$MYSQL_PASSWORD\" > /dev/null 2>&1; then\n        echo \"✅ Database accepting connections\"\n    else\n        echo \"❌ Database not accepting connections\"\n    fi\n    echo \"\"\nfi\n\necho \"=== Health Check Complete ===\"\n",
+        "prerequisites": {
+          "docker_running": true
+        }
+      },
+      "metadata": {
+        "use_count": 4,
+        "success_rate": 100.0,
+        "created_at": "2025-12-26T20:34:47.735837+00:00",
+        "updated_at": "2025-12-27T17:02:02.427367+00:00"
+      }
+    },
+    {
+      "agent_name": "check-volume-safety",
+      "display_name": "Check Volume Safety and Detect Violations",
+      "description": "Monitors critical volumes, detects if data was lost, and provides recovery guidance",
+      "category": "monitoring",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "check volumes",
+        "check volume violations",
+        "did I lose data",
+        "verify data safety",
+        "volume safety check"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n\necho \"=== Volume Safety Check ===\"\necho \"\"\necho \"Date: $(date)\"\necho \"\"\n\n# Expected critical volumes\nEXPECTED_VOLUMES=(\n    \"claude-memory-db-data:Database (context snapshots, skills, agent work)\"\n    \"claude-memory-ollama:Ollama models (2GB+ downloads)\"\n)\n\n# Check each expected volume\necho \"--- Critical Volume Status ---\"\nALL_PRESENT=true\nMISSING_VOLUMES=()\n\nfor vol_info in \"${EXPECTED_VOLUMES[@]}\"; do\n    vol_name=\"${vol_info%%:*}\"\n    vol_desc=\"${vol_info#*:}\"\n    \n    if docker volume inspect \"$vol_name\" >/dev/null 2>&1; then\n        SIZE=$(docker volume inspect \"$vol_name\" --format \"{{.Mountpoint}}\" | xargs du -sh 2>/dev/null | awk '{print $1}' || echo \"unknown\")\n        CREATED=$(docker volume inspect \"$vol_name\" --format \"{{.CreatedAt}}\" 2>/dev/null | cut -d'T' -f1)\n        echo \"✅ $vol_name\"\n        echo \"   Description: $vol_desc\"\n        echo \"   Size: $SIZE\"\n        echo \"   Created: $CREATED\"\n    else\n        echo \"❌ VIOLATION DETECTED: $vol_name\"\n        echo \"   Description: $vol_desc\"\n        echo \"   Status: VOLUME MISSING!\"\n        ALL_PRESENT=false\n        MISSING_VOLUMES+=(\"$vol_name\")\n    fi\n    echo \"\"\ndone\n\n# Database-specific checks if volume exists\nif docker volume inspect claude-memory-db-data >/dev/null 2>&1; then\n    echo \"--- Database Content Check ---\"\n    \n    # Check if database is accessible\n    if docker exec claude-context-db psql -U memory_admin -d claude_memory -c \"SELECT 1\" >/dev/null 2>&1; then\n        # Count records\n        SNAPSHOT_COUNT=$(docker exec claude-context-db psql -U memory_admin -d claude_memory -t -c \"SELECT COUNT(*) FROM context_snapshots;\" 2>/dev/null | xargs)\n        SKILL_COUNT=$(docker exec claude-context-db psql -U memory_admin -d claude_memory -t -c \"SELECT COUNT(*) FROM skills_agents WHERE is_active = TRUE;\" 2>/dev/null | xargs)\n        AGENT_WORK_COUNT=$(docker exec claude-context-db psql -U memory_admin -d claude_memory -t -c \"SELECT COUNT(*) FROM agent_work;\" 2>/dev/null | xargs)\n        \n        echo \"Database contains:\"\n        echo \"  • $SNAPSHOT_COUNT conversation snapshots\"\n        echo \"  • $SKILL_COUNT active skills\"\n        echo \"  • $AGENT_WORK_COUNT agent work records\"\n        \n        # Warning if counts are suspiciously low\n        if [ \"$SNAPSHOT_COUNT\" -lt 5 ]; then\n            echo \"\"\n            echo \"⚠️  WARNING: Low snapshot count ($SNAPSHOT_COUNT)\"\n            echo \"   This may indicate data loss or fresh installation\"\n        fi\n        \n        if [ \"$SKILL_COUNT\" -lt 3 ]; then\n            echo \"\"\n            echo \"⚠️  WARNING: Low skill count ($SKILL_COUNT)\"\n            echo \"   Expected at least 3-5 skills in production\"\n        fi\n    else\n        echo \"⚠️  Database not accessible (may be starting up)\"\n    fi\n    echo \"\"\nfi\n\n# Ollama model check if volume exists\nif docker volume inspect claude-memory-ollama >/dev/null 2>&1; then\n    echo \"--- Ollama Models Check ---\"\n    MODEL_COUNT=$(docker exec claude-ollama ollama list 2>/dev/null | tail -n +2 | wc -l | xargs)\n    if [ \"$MODEL_COUNT\" -gt 0 ]; then\n        echo \"Models installed: $MODEL_COUNT\"\n        docker exec claude-ollama ollama list 2>/dev/null | head -4\n    else\n        echo \"⚠️  WARNING: No models installed\"\n        echo \"   Expected: llama3.2, mxbai-embed-large\"\n    fi\n    echo \"\"\nfi\n\n# Violation report\nif [ \"$ALL_PRESENT\" = false ]; then\n    echo \"╔════════════════════════════════════════════════════════════════╗\"\n    echo \"║  ⚠️  ⚠️  ⚠️   VOLUME VIOLATION DETECTED   ⚠️  ⚠️  ⚠️           ║\"\n    echo \"╚════════════════════════════════════════════════════════════════╝\"\n    echo \"\"\n    echo \"Missing volumes:\"\n    for vol in \"${MISSING_VOLUMES[@]}\"; do\n        echo \"  ❌ $vol\"\n    done\n    echo \"\"\n    echo \"CRITICAL: Data loss has occurred!\"\n    echo \"\"\n    echo \"Possible causes:\"\n    echo \"  1. docker-compose down -v (removes volumes)\"\n    echo \"  2. docker volume rm claude-memory-*\"\n    echo \"  3. Manual volume deletion\"\n    echo \"  4. Fresh installation\"\n    echo \"\"\n    echo \"Recovery options:\"\n    echo \"\"\n    echo \"If you have backups:\"\n    echo \"  1. Restore database from backup:\"\n    echo \"     docker cp backup.sql claude-context-db:/tmp/\"\n    echo \"     docker exec claude-context-db psql -U memory_admin -d claude_memory < /tmp/backup.sql\"\n    echo \"\"\n    echo \"  2. Re-import skills from export:\"\n    echo \"     python3 import-skill.py skills-backup.json\"\n    echo \"\"\n    echo \"  3. Re-download Ollama models:\"\n    echo \"     docker exec claude-ollama ollama pull llama3.2\"\n    echo \"     docker exec claude-ollama ollama pull mxbai-embed-large\"\n    echo \"\"\n    echo \"If no backups exist:\"\n    echo \"  • Data is permanently lost\"\n    echo \"  • Start fresh: docker-compose up -d\"\n    echo \"  • Recreate skills manually or from documentation\"\n    echo \"\"\n    exit 1\nelse\n    echo \"╔════════════════════════════════════════════════════════════════╗\"\n    echo \"║  ✅ ALL VOLUMES PRESENT - NO VIOLATIONS DETECTED              ║\"\n    echo \"╚════════════════════════════════════════════════════════════════╝\"\n    echo \"\"\n    echo \"Your data is safe!\"\n    echo \"\"\n    echo \"Safety reminders:\"\n    echo \"  • NEVER use: docker-compose down -v\"\n    echo \"  • NEVER use: docker volume rm claude-memory-*\"\n    echo \"  • ALWAYS use: docker-compose restart (safe)\"\n    echo \"  • Regular backups: /mem-skills-export --all\"\n    echo \"\"\nfi\n\necho \"=== Volume Safety Check Complete ===\" ",
+        "prerequisites": {
+          "docker_running": true
+        }
+      },
+      "metadata": {
+        "use_count": 1,
+        "success_rate": 100.0,
+        "created_at": "2025-12-26T23:46:59.582714+00:00",
+        "updated_at": "2025-12-26T23:47:13.585921+00:00"
+      }
+    },
+    {
+      "agent_name": "find-todos",
+      "display_name": "Find TODO Comments",
+      "description": null,
+      "category": "development",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "find todos",
+        "list todo items",
+        "search for todo comments",
+        "show me todos"
+      ],
+      "command": {
+        "type": "tool_sequence",
+        "content": null,
+        "prerequisites": null
+      },
+      "metadata": {
+        "use_count": 2,
+        "success_rate": 100.0,
+        "created_at": "2025-12-27T03:45:12.090355+00:00",
+        "updated_at": "2025-12-27T17:02:06.885450+00:00"
+      }
+    },
+    {
+      "agent_name": "restart-services",
+      "display_name": "Restart Claude Memory Services",
+      "description": "Safely restarts Claude Memory services with volume removal detection and warnings",
+      "category": "maintenance",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "reboot services",
+        "restart claude memory",
+        "restart containers",
+        "restart services",
+        "service restart"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n# PORTABLE VERSION - dynamically detects project directory and volumes\n\n# Detect project directory (where docker-compose.yml is)\nfind_docker_compose() {\n    local dir=\"$PWD\"\n    while [ \"$dir\" != \"/\" ]; do\n        if [ -f \"$dir/docker-compose.yml\" ] || [ -f \"$dir/docker-compose.yaml\" ]; then\n            echo \"$dir\"\n            return 0\n        fi\n        dir=$(dirname \"$dir\")\n    done\n    return 1\n}\n\nPROJECT_DIR=$(find_docker_compose)\n\nif [ -z \"$PROJECT_DIR\" ]; then\n    echo \"❌ docker-compose.yml not found\"\n    echo \"   Please run this from a docker-compose project directory\"\n    exit 1\nfi\n\n# Detect project name from docker-compose or directory name\nif command -v docker-compose >/dev/null 2>&1; then\n    PROJECT_NAME=$(cd \"$PROJECT_DIR\" && docker-compose config 2>/dev/null | grep \"^name:\" | head -1 | sed 's/^name: *//' | xargs 2>/dev/null)\nfi\n\nif [ -z \"$PROJECT_NAME\" ]; then\n    PROJECT_NAME=$(basename \"$PROJECT_DIR\" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\nfi\n\necho \"=== Service Restart: $PROJECT_NAME ===\"\necho \"Project directory: $PROJECT_DIR\"\necho \"\"\n\n# Check if volumes exist\necho \"--- Checking Volumes ---\"\nVOLUMES=$(docker volume ls --filter \"name=$PROJECT_NAME\" --format \"{{.Name}}\")\n\nif [ -z \"$VOLUMES\" ]; then\n    echo \"⚠️  WARNING: No volumes found for project '$PROJECT_NAME'\"\n    echo \"   This may indicate:\"\n    echo \"   • Fresh installation (no volumes created yet)\"\n    echo \"   • Volumes were previously removed\"\n    echo \"   • Project name mismatch\"\nelse\n    echo \"Found $(echo \"$VOLUMES\" | wc -l | xargs) volume(s):\"\n    for vol in $VOLUMES; do\n        SIZE=$(docker volume inspect \"$vol\" --format \"{{.Mountpoint}}\" 2>/dev/null | xargs -I {} sudo du -sh {} 2>/dev/null | awk '{print $1}' || echo \"unknown\")\n\n        # Detect critical volumes\n        CRITICAL=\"\"\n        if echo \"$vol\" | grep -qi \"db\\|database\\|postgres\\|mysql\"; then\n            CRITICAL=\" (⚠️  CRITICAL - database)\"\n        elif echo \"$vol\" | grep -qi \"ollama\\|model\\|llm\"; then\n            CRITICAL=\" (📦 LARGE - AI models)\"\n        fi\n\n        echo \"  ✅ $vol (size: $SIZE)$CRITICAL\"\n    done\nfi\necho \"\"\n\n# Volume removal warning\necho \"╔════════════════════════════════════════════════════════════════╗\"\necho \"║  ⚠️  ⚠️  ⚠️  VOLUME REMOVAL WARNING  ⚠️  ⚠️  ⚠️               ║\"\necho \"╚════════════════════════════════════════════════════════════════╝\"\necho \"\"\necho \"NEVER run these commands:\"\necho \"  ❌ docker-compose down -v\"\necho \"  ❌ docker volume rm $PROJECT_NAME-*\"\necho \"  ❌ docker volume prune (without checking first)\"\necho \"\"\necho \"These will PERMANENTLY DELETE project data!\"\necho \"\"\n\necho \"=== Safe Restart Options ===\"\necho \"\"\necho \"1. RECOMMENDED: Restart containers only (keeps volumes)\"\necho \"2. Stop and start (keeps volumes)\"\necho \"3. Recreate containers only (keeps volumes)\"\necho \"4. Down and up (SAFE - does NOT remove volumes by default)\"\necho \"\"\n\n# Ask user which option\nread -p \"Select option (1-4) or c to cancel: \" option\n\ncase $option in\n    1)\n        echo \"\"\n        echo \"🔄 Restarting containers (keeps volumes)...\"\n        cd \"$PROJECT_DIR\" && docker-compose restart\n        echo \"✅ Services restarted successfully\"\n        ;;\n    2)\n        echo \"\"\n        echo \"🛑 Stopping containers...\"\n        cd \"$PROJECT_DIR\" && docker-compose stop\n        echo \"🚀 Starting containers...\"\n        cd \"$PROJECT_DIR\" && docker-compose up -d\n        echo \"✅ Services restarted successfully\"\n        ;;\n    3)\n        echo \"\"\n        echo \"🔄 Recreating containers (keeps volumes)...\"\n        cd \"$PROJECT_DIR\" && docker-compose up -d --force-recreate\n        echo \"✅ Containers recreated successfully\"\n        ;;\n    4)\n        echo \"\"\n        echo \"⚠️  WARNING: This will stop all containers\"\n        echo \"   Volumes will NOT be removed (safe)\"\n        read -p \"Type YES to confirm: \" confirm\n        if [ \"$confirm\" = \"YES\" ]; then\n            echo \"\"\n            echo \"🛑 Stopping and removing containers...\"\n            cd \"$PROJECT_DIR\" && docker-compose down\n            echo \"🚀 Starting services...\"\n            cd \"$PROJECT_DIR\" && docker-compose up -d\n            echo \"✅ Services restarted successfully\"\n        else\n            echo \"❌ Cancelled\"\n            exit 1\n        fi\n        ;;\n    c|C)\n        echo \"❌ Cancelled\"\n        exit 1\n        ;;\n    *)\n        echo \"❌ Invalid option\"\n        exit 1\n        ;;\nesac\n\necho \"\"\necho \"--- Service Status After Restart ---\"\ndocker ps --filter \"name=$PROJECT_NAME\" --format \"table {{.Names}}\\t{{.Status}}\"\necho \"\"\necho \"=== Restart Complete ===\"\n",
+        "prerequisites": {
+          "file_exists": "/Users/jamesmba/Data/00 GITHUB/Code/claude-memory/docker-compose.yml",
+          "docker_running": true
+        }
+      },
+      "metadata": {
+        "use_count": 1,
+        "success_rate": 0.0,
+        "created_at": "2025-12-26T23:43:59.431566+00:00",
+        "updated_at": "2025-12-26T23:44:26.566630+00:00"
+      }
+    },
+    {
+      "agent_name": "show-db-connection",
+      "display_name": "Show Database Connection Variables",
+      "description": "Displays database connection variables from .env file for troubleshooting authentication issues",
+      "category": "database",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "database connection info",
+        "get db vars",
+        "show database connection",
+        "show db password",
+        "what are the database credentials"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n# Read database connection variables from .env file\n# PORTABLE VERSION - dynamically detects .env location\n\n# Function to find .env file in current or parent directories\nfind_env_file() {\n    local dir=\"$PWD\"\n    while [ \"$dir\" != \"/\" ]; do\n        if [ -f \"$dir/.env\" ]; then\n            echo \"$dir/.env\"\n            return 0\n        fi\n        dir=$(dirname \"$dir\")\n    done\n    return 1\n}\n\n# Find .env file\nENV_FILE=$(find_env_file)\n\nif [ -z \"$ENV_FILE\" ]; then\n    echo \"❌ .env file not found\"\n    echo \"\"\n    echo \"Searched from: $PWD\"\n    echo \"Searched up to: root directory\"\n    echo \"\"\n    echo \"Please ensure you're in a project directory with a .env file.\"\n    exit 1\nfi\n\necho \"=== Database Connection Variables ===\"\necho \"\"\necho \"Reading from: $ENV_FILE\"\necho \"\"\n\n# Source .env and display DB-related variables\n# Use safer sourcing that handles spaces and special characters\nset -a\nsource \"$ENV_FILE\" 2>/dev/null || {\n    echo \"❌ Failed to source .env file\"\n    exit 1\n}\nset +a\n\necho \"Database Configuration:\"\necho \"  POSTGRES_DB:         ${POSTGRES_DB:-claude_memory}\"\necho \"  POSTGRES_USER:       ${POSTGRES_USER:-memory_admin}\"\necho \"  POSTGRES_HOST_PORT:  ${POSTGRES_HOST_PORT:-5435}\"\necho \"\"\n\necho \"Connection Password:\"\necho \"  CONTEXT_DB_PASSWORD: ${CONTEXT_DB_PASSWORD}\"\necho \"\"\n\necho \"=== Copy-Pastable Export Commands ===\"\necho \"\"\necho \"export CONTEXT_DB_PASSWORD=\\\"${CONTEXT_DB_PASSWORD}\\\"\"\necho \"export DB_HOST=\\\"localhost\\\"\"\necho \"export DB_PORT=\\\"${POSTGRES_HOST_PORT:-5435}\\\"\"\necho \"\"\n\necho \"=== Python Connection Config ===\"\necho \"\"\necho \"DB_CONFIG = {\"\necho \"    'host': 'localhost',\"\necho \"    'port': ${POSTGRES_HOST_PORT:-5435},\"\necho \"    'database': '${POSTGRES_DB:-claude_memory}',\"\necho \"    'user': '${POSTGRES_USER:-memory_admin}',\"\necho \"    'password': '${CONTEXT_DB_PASSWORD}'\"\necho \"}\"\necho \"\"\n\n# Detect container name dynamically\nPROJECT_NAME=$(basename \"$(dirname \"$ENV_FILE\")\" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\nCONTAINER_NAME=\"${PROJECT_NAME}-context-db\"\n\n# Try common container naming patterns\nCONTAINER=$(docker ps --filter \"name=context-db\" --format \"{{.Names}}\" | head -1)\nif [ -z \"$CONTAINER\" ]; then\n    CONTAINER=$(docker ps --filter \"name=db\" --format \"{{.Names}}\" | head -1)\nfi\nif [ -z \"$CONTAINER\" ]; then\n    CONTAINER=$(docker ps --filter \"name=postgres\" --format \"{{.Names}}\" | head -1)\nfi\n\necho \"=== Connection Test ===\"\necho \"\"\nif [ -n \"$CONTAINER\" ]; then\n    echo \"Testing connection via container: $CONTAINER\"\n    if docker exec \"$CONTAINER\" psql -U \"${POSTGRES_USER:-memory_admin}\" -d \"${POSTGRES_DB:-claude_memory}\" -c \"SELECT 1;\" > /dev/null 2>&1; then\n        echo \"✅ Database connection successful\"\n    else\n        echo \"❌ Database connection failed\"\n    fi\nelse\n    echo \"⚠️  No database container found - skipping connection test\"\n    echo \"   (Container detection looked for: *context-db*, *db*, *postgres*)\"\nfi\n",
+        "prerequisites": {
+          "file_exists": "/Users/jamesmba/Data/00 GITHUB/Code/claude-memory/.env"
+        }
+      },
+      "metadata": {
+        "use_count": 1,
+        "success_rate": 100.0,
+        "created_at": "2025-12-26T23:28:53.661495+00:00",
+        "updated_at": "2025-12-26T23:29:07.212127+00:00"
+      }
+    },
+    {
+      "agent_name": "system-status",
+      "display_name": "Claude Memory System Status",
+      "description": "Shows status of all Claude Memory services: database, processor, ollama, and disk usage",
+      "category": "monitoring",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "are services running",
+        "check services",
+        "claude memory status",
+        "show system health",
+        "system status"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n# PORTABLE VERSION - dynamically detects project and containers\n\n# Detect project name from docker-compose or directory name\nfind_docker_compose() {\n    local dir=\"$PWD\"\n    while [ \"$dir\" != \"/\" ]; do\n        if [ -f \"$dir/docker-compose.yml\" ] || [ -f \"$dir/docker-compose.yaml\" ]; then\n            echo \"$dir\"\n            return 0\n        fi\n        dir=$(dirname \"$dir\")\n    done\n    return 1\n}\n\nPROJECT_DIR=$(find_docker_compose)\n\nif [ -z \"$PROJECT_DIR\" ]; then\n    echo \"⚠️  docker-compose.yml not found - showing all containers\"\n    PROJECT_NAME=\"\"\nelse\n    # Detect project name from docker-compose\n    if command -v docker-compose >/dev/null 2>&1; then\n        PROJECT_NAME=$(cd \"$PROJECT_DIR\" && docker-compose config 2>/dev/null | grep \"^name:\" | head -1 | sed 's/^name: *//' | xargs 2>/dev/null)\n    fi\n\n    if [ -z \"$PROJECT_NAME\" ]; then\n        PROJECT_NAME=$(basename \"$PROJECT_DIR\" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\n    fi\nfi\n\necho \"=== System Status: ${PROJECT_NAME:-All Containers} ===\"\necho \"\"\necho \"Date: $(date)\"\n[ -n \"$PROJECT_DIR\" ] && echo \"Project directory: $PROJECT_DIR\"\necho \"\"\n\necho \"--- Docker Containers ---\"\nif [ -n \"$PROJECT_NAME\" ]; then\n    # Try to find containers related to this project\n    # First try exact project name match\n    CONTAINERS=$(docker ps --filter \"name=$PROJECT_NAME\" --format \"{{.Names}}\")\n\n    # If no containers found, try shortened version (e.g., claude-memory -> claude)\n    if [ -z \"$CONTAINERS\" ]; then\n        PREFIX=$(echo \"$PROJECT_NAME\" | cut -d'-' -f1)\n        CONTAINERS=$(docker ps --filter \"name=$PREFIX\" --format \"{{.Names}}\")\n    fi\n\n    if [ -n \"$CONTAINERS\" ]; then\n        docker ps --filter \"name=$PREFIX\" --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"\n    else\n        echo \"No containers found for project: $PROJECT_NAME\"\n    fi\nelse\n    docker ps --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"\nfi\necho \"\"\n\n# Determine search prefix (first part of project name, e.g., \"claude\" from \"claude-memory\")\nif [ -n \"$PROJECT_NAME\" ]; then\n    PREFIX=$(echo \"$PROJECT_NAME\" | cut -d'-' -f1)\nelse\n    PREFIX=\"\"\nfi\n\n# Find database container (try common patterns)\nif [ -n \"$PREFIX\" ]; then\n    DB_CONTAINER=$(docker ps --filter \"name=$PREFIX\" --format \"{{.Names}}\" | grep -E \"db|postgres|mysql\" | head -1)\nelse\n    DB_CONTAINER=$(docker ps --format \"{{.Names}}\" | grep -E \"db|postgres|mysql\" | head -1)\nfi\n\n# Find processor container\nif [ -n \"$PREFIX\" ]; then\n    PROCESSOR_CONTAINER=$(docker ps --filter \"name=$PREFIX\" --format \"{{.Names}}\" | grep -E \"processor|api|backend\" | head -1)\nelse\n    PROCESSOR_CONTAINER=$(docker ps --format \"{{.Names}}\" | grep -E \"processor|api|backend\" | head -1)\nfi\n\n# Find Ollama container\nif [ -n \"$PREFIX\" ]; then\n    OLLAMA_CONTAINER=$(docker ps --filter \"name=$PREFIX\" --format \"{{.Names}}\" | grep -i \"ollama\" | head -1)\nelse\n    OLLAMA_CONTAINER=$(docker ps --format \"{{.Names}}\" | grep -i \"ollama\" | head -1)\nfi\n\necho \"--- Service Health ---\"\n\n# Database health check\nif [ -n \"$DB_CONTAINER\" ]; then\n    # Try PostgreSQL\n    if docker exec \"$DB_CONTAINER\" pg_isready > /dev/null 2>&1; then\n        echo \"✅ Database ($DB_CONTAINER): Healthy\"\n    # Try MySQL\n    elif docker exec \"$DB_CONTAINER\" mysqladmin ping > /dev/null 2>&1; then\n        echo \"✅ Database ($DB_CONTAINER): Healthy\"\n    else\n        echo \"⚠️  Database ($DB_CONTAINER): Not responding\"\n    fi\nelse\n    echo \"⚠️  Database: Container not found\"\nfi\n\n# Processor health check (try common ports)\nPROCESSOR_HEALTHY=false\nfor port in 3200 3000 8080 8000; do\n    if curl -s http://localhost:$port/health > /dev/null 2>&1; then\n        echo \"✅ Processor: Healthy (port $port)\"\n        PROCESSOR_HEALTHY=true\n        break\n    fi\ndone\nif [ \"$PROCESSOR_HEALTHY\" = false ]; then\n    if [ -n \"$PROCESSOR_CONTAINER\" ]; then\n        echo \"⚠️  Processor ($PROCESSOR_CONTAINER): Not responding\"\n    else\n        echo \"⚠️  Processor: Container not found\"\n    fi\nfi\n\n# Ollama health check\nif [ -n \"$OLLAMA_CONTAINER\" ]; then\n    if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then\n        echo \"✅ Ollama ($OLLAMA_CONTAINER): Healthy\"\n    else\n        echo \"⚠️  Ollama ($OLLAMA_CONTAINER): Not responding\"\n    fi\nelse\n    echo \"⚠️  Ollama: Container not found\"\nfi\necho \"\"\n\n# Database statistics (if database container exists)\nif [ -n \"$DB_CONTAINER\" ]; then\n    echo \"--- Database Statistics ---\"\n\n    # Detect database type and user\n    if docker exec \"$DB_CONTAINER\" psql --version > /dev/null 2>&1; then\n        # PostgreSQL\n        DB_USER=$(docker exec \"$DB_CONTAINER\" printenv POSTGRES_USER 2>/dev/null || echo \"postgres\")\n        DB_NAME=$(docker exec \"$DB_CONTAINER\" printenv POSTGRES_DB 2>/dev/null || echo \"postgres\")\n\n        # Try to get stats\n        docker exec \"$DB_CONTAINER\" psql -U \"$DB_USER\" -d \"$DB_NAME\" -t -c \"\n        SELECT\n            'Tables: ' || COUNT(*)\n        FROM information_schema.tables\n        WHERE table_schema = 'public';\n        \" 2>/dev/null | sed 's/^[ \\t]*//' || echo \"Statistics unavailable\"\n    fi\n    echo \"\"\nfi\n\necho \"--- Disk Usage ---\"\ndf -h /var/lib/docker 2>/dev/null | tail -1 | awk '{print \"Docker volumes: \" $3 \" used / \" $2 \" total (\" $5 \" full)\"}' || echo \"Docker disk info unavailable\"\necho \"\"\n\n# Ollama models (if Ollama container exists)\nif [ -n \"$OLLAMA_CONTAINER\" ]; then\n    echo \"--- Ollama Models ---\"\n    docker exec \"$OLLAMA_CONTAINER\" ollama list 2>/dev/null | head -5 || echo \"Ollama models unavailable\"\n    echo \"\"\nfi\n\n# Volume information\nif [ -n \"$PROJECT_NAME\" ]; then\n    VOLUMES=$(docker volume ls --filter \"name=$PROJECT_NAME\" --format \"{{.Name}}\")\n    if [ -n \"$VOLUMES\" ]; then\n        echo \"--- Volumes ---\"\n        echo \"$VOLUMES\" | while read vol; do\n            echo \"  • $vol\"\n        done\n        echo \"\"\n    fi\nfi\n\necho \"=== Status Check Complete ===\"\n",
+        "prerequisites": {
+          "docker_running": true
+        }
+      },
+      "metadata": {
+        "use_count": 1,
+        "success_rate": 100.0,
+        "created_at": "2025-12-26T23:32:27.507322+00:00",
+        "updated_at": "2025-12-26T23:32:37.031213+00:00"
+      }
+    },
+    {
+      "agent_name": "where-am-i",
+      "display_name": "Project Orientation - Where Am I?",
+      "description": "Orients Claude to current project by reading .claude/CLAUDE.md, discovering Docker assets, and offering to create/update project documentation",
+      "category": "project-management",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "orient me",
+        "project context",
+        "what am I working with",
+        "what project is this",
+        "where am i"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n\necho \"╔══════════════════════════════════════════════════════════════════╗\"\necho \"║           PROJECT ORIENTATION - Where Am I?                      ║\"\necho \"╚══════════════════════════════════════════════════════════════════╝\"\necho \"\"\n\n# ==============================================================================\n# SECTION 1: FIND CLAUDE.MD (SOURCE OF TRUTH)\n# ==============================================================================\necho \"=== Looking for Claude Project Documentation ===\"\necho \"\"\n\nCLAUDE_MD=\"\"\nCLAUDE_DIR=\"\"\n\n# Check common locations\nif [ -f \".claude/CLAUDE.md\" ]; then\n    CLAUDE_MD=\".claude/CLAUDE.md\"\n    CLAUDE_DIR=\".claude\"\nelif [ -f \".claude.md\" ]; then\n    CLAUDE_MD=\".claude.md\"\nelif [ -f \"CLAUDE.md\" ]; then\n    CLAUDE_MD=\"CLAUDE.md\"\nfi\n\nif [ -n \"$CLAUDE_MD\" ]; then\n    echo \"✅ Found Claude documentation: $CLAUDE_MD\"\n    echo \"\"\n    echo \"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\"\n    echo \"📖 PROJECT CONTEXT (from $CLAUDE_MD)\"\n    echo \"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\"\n    echo \"\"\n\n    # Display the CLAUDE.md content\n    cat \"$CLAUDE_MD\"\n\n    echo \"\"\n    echo \"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\"\n    echo \"\"\nelse\n    echo \"⚠️  No Claude documentation found (.claude/CLAUDE.md)\"\n    echo \"\"\n    echo \"Searched for:\"\n    echo \"  - .claude/CLAUDE.md\"\n    echo \"  - .claude.md\"\n    echo \"  - CLAUDE.md\"\n    echo \"\"\n    echo \"I'll discover project details and offer to create one...\"\n    echo \"\"\nfi\n\n# ==============================================================================\n# SECTION 2: DISCOVER PROJECT ASSETS\n# ==============================================================================\necho \"=== Discovering Project Assets ===\"\necho \"\"\n\n# Basic info\nDIR_NAME=$(basename \"$PWD\")\necho \"📁 Current Directory: $PWD\"\necho \"📦 Project Name: $DIR_NAME\"\necho \"\"\n\n# Git info\nif [ -d \".git\" ]; then\n    GIT_REMOTE=$(git remote get-url origin 2>/dev/null || echo \"No remote\")\n    GIT_BRANCH=$(git branch --show-current 2>/dev/null || echo \"unknown\")\n    LAST_COMMIT=$(git log -1 --format=\"%h - %s (%ar)\" 2>/dev/null || echo \"No commits\")\n\n    echo \"🔀 Git Repository:\"\n    echo \"   Remote: $GIT_REMOTE\"\n    echo \"   Branch: $GIT_BRANCH\"\n    echo \"   Last Commit: $LAST_COMMIT\"\n    echo \"\"\nfi\n\n# Docker Compose\nCOMPOSE_FILE=\"\"\nCOMPOSE_PROJECT=\"\"\nif [ -f \"docker-compose.yml\" ]; then\n    COMPOSE_FILE=\"docker-compose.yml\"\nelif [ -f \"docker-compose.yaml\" ]; then\n    COMPOSE_FILE=\"docker-compose.yaml\"\nfi\n\nif [ -n \"$COMPOSE_FILE\" ]; then\n    echo \"🐳 Docker Compose: $COMPOSE_FILE\"\n\n    # Extract project name\n    if command -v docker-compose >/dev/null 2>&1; then\n        COMPOSE_PROJECT=$(docker-compose config 2>/dev/null | grep -A1 \"^name:\" | tail -1 | sed 's/name: //' | xargs 2>/dev/null || echo \"$DIR_NAME\")\n    else\n        COMPOSE_PROJECT=$DIR_NAME\n    fi\n    echo \"   Project: $COMPOSE_PROJECT\"\n\n    # Services\n    SERVICE_COUNT=$(docker-compose config --services 2>/dev/null | wc -l | xargs || echo \"0\")\n    if [ \"$SERVICE_COUNT\" -gt 0 ]; then\n        echo \"   Services ($SERVICE_COUNT):\"\n        docker-compose config --services 2>/dev/null | sed 's/^/     - /'\n    fi\n    echo \"\"\nfi\n\n# Containers\nif [ -n \"$COMPOSE_PROJECT\" ]; then\n    CONTAINERS=$(docker ps -a --filter \"name=$COMPOSE_PROJECT\" --format \"{{.Names}}\\t{{.Status}}\" 2>/dev/null)\n    if [ -n \"$CONTAINERS\" ]; then\n        echo \"📦 Running Containers:\"\n        echo \"$CONTAINERS\" | sed 's/^/   /'\n        echo \"\"\n    fi\nfi\n\n# Volumes\nif [ -n \"$COMPOSE_PROJECT\" ]; then\n    VOLUMES=$(docker volume ls --filter \"name=$COMPOSE_PROJECT\" --format \"{{.Name}}\" 2>/dev/null)\n    if [ -n \"$VOLUMES\" ]; then\n        echo \"💾 Volumes:\"\n        for vol in $VOLUMES; do\n            # Detect critical volumes\n            CRITICAL=\"\"\n            [[ \"$vol\" =~ db|database|postgres|mysql ]] && CRITICAL=\" (⚠️  CRITICAL - database)\"\n            [[ \"$vol\" =~ ollama|model|llm ]] && CRITICAL=\" (📦 LARGE - AI models)\"\n\n            echo \"   - $vol$CRITICAL\"\n        done\n        echo \"\"\n    fi\nfi\n\n# Environment files\nif [ -f \".env\" ]; then\n    ENV_VARS=$(grep -v \"^#\" .env 2>/dev/null | grep \"=\" | cut -d'=' -f1)\n    ENV_COUNT=$(echo \"$ENV_VARS\" | wc -l | xargs)\n    echo \"🔐 Environment Variables (.env): $ENV_COUNT defined\"\n    echo \"\"\nfi\n\n# Claude Code config\nif [ -d \".claude\" ]; then\n    echo \"⚙️  Claude Code Configuration:\"\n    [ -f \".claude/settings.json\" ] && echo \"   ✅ settings.json\"\n    [ -d \".claude/commands\" ] && SKILL_COUNT=$(ls -1 .claude/commands/*.md 2>/dev/null | wc -l | xargs) && echo \"   ✅ commands/ ($SKILL_COUNT slash commands)\"\n    [ -d \".claude/rules\" ] && RULE_COUNT=$(ls -1 .claude/rules/*.md 2>/dev/null | wc -l | xargs) && echo \"   ✅ rules/ ($RULE_COUNT rule files)\"\n    echo \"\"\nfi\n\n# ==============================================================================\n# SECTION 3: OFFER TO CREATE/UPDATE CLAUDE.MD\n# ==============================================================================\nif [ -z \"$CLAUDE_MD\" ]; then\n    echo \"╔══════════════════════════════════════════════════════════════════╗\"\n    echo \"║                 CREATE CLAUDE.MD DOCUMENTATION?                  ║\"\n    echo \"╚══════════════════════════════════════════════════════════════════╝\"\n    echo \"\"\n    echo \"I discovered project assets but no CLAUDE.md exists.\"\n    echo \"This file helps Claude understand the project quickly.\"\n    echo \"\"\n    echo \"Would you like me to:\"\n    echo \"  1. Create .claude/CLAUDE.md with discovered info\"\n    echo \"  2. Create CLAUDE.md at project root\"\n    echo \"  3. Skip (just show current state)\"\n    echo \"\"\n    read -p \"Select option (1-3): \" CREATE_OPTION\n\n    case $CREATE_OPTION in\n        1)\n            echo \"\"\n            echo \"Creating .claude/CLAUDE.md...\"\n            mkdir -p .claude\n\n            cat > .claude/CLAUDE.md <<EOF\n# $(echo \"$DIR_NAME\" | tr '-' ' ' | tr '_' ' ' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2));}1') - Project Context\n\n**Project Root:** \\`$PWD\\`\n**Auto-discovered:** $(date +%Y-%m-%d)\n\n---\n\n## Quick Context\n\nEOF\n\n            # Add git info if available\n            if [ -d \".git\" ]; then\n                cat >> .claude/CLAUDE.md <<EOF\n### Git Repository\n- **Remote:** $GIT_REMOTE\n- **Branch:** $GIT_BRANCH\n- **Last Commit:** $LAST_COMMIT\n\nEOF\n            fi\n\n            # Add Docker info if available\n            if [ -n \"$COMPOSE_FILE\" ]; then\n                cat >> .claude/CLAUDE.md <<EOF\n### Docker Infrastructure\n- **Compose File:** $COMPOSE_FILE\n- **Project Name:** $COMPOSE_PROJECT\n- **Services:** $SERVICE_COUNT\n\nEOF\n                if [ \"$SERVICE_COUNT\" -gt 0 ]; then\n                    echo \"**Service List:**\" >> .claude/CLAUDE.md\n                    docker-compose config --services 2>/dev/null | sed 's/^/- /' >> .claude/CLAUDE.md\n                    echo \"\" >> .claude/CLAUDE.md\n                fi\n            fi\n\n            # Add volumes if critical\n            if [ -n \"$VOLUMES\" ]; then\n                cat >> .claude/CLAUDE.md <<EOF\n### Critical Volumes (⚠️  DO NOT DELETE)\n\nEOF\n                for vol in $VOLUMES; do\n                    if [[ \"$vol\" =~ db|database|postgres|mysql|ollama|model ]]; then\n                        echo \"- \\`$vol\\` - Contains persistent data\" >> .claude/CLAUDE.md\n                    fi\n                done\n                echo \"\" >> .claude/CLAUDE.md\n            fi\n\n            # Add footer\n            cat >> .claude/CLAUDE.md <<EOF\n\n---\n\n## Important Notes\n\n<!-- Add project-specific notes here -->\n\n---\n\n**Last Updated:** $(date +%Y-%m-%d)\n**Next Review:** Update when significant changes occur\nEOF\n\n            echo \"✅ Created .claude/CLAUDE.md\"\n            echo \"\"\n            echo \"You can edit it to add:\"\n            echo \"  - Project description\"\n            echo \"  - Setup instructions\"\n            echo \"  - Important paths\"\n            echo \"  - Custom workflows\"\n            ;;\n\n        2)\n            echo \"\"\n            echo \"Creating CLAUDE.md at project root...\"\n            # Similar content but at root\n            cat > CLAUDE.md <<EOF\n# $DIR_NAME\n\n**Project discovered:** $(date +%Y-%m-%d)\n\n## Overview\n\n<!-- Add project description -->\n\n## Quick Start\n\n<!-- Add setup instructions -->\n\n## Docker Services\n\n$(if [ -n \"$COMPOSE_PROJECT\" ]; then echo \"Project: $COMPOSE_PROJECT\"; docker-compose config --services 2>/dev/null | sed 's/^/- /'; fi)\n\n## Important Paths\n\n<!-- Add key directories and files -->\n\n---\n\n**Auto-generated by Claude Code project orientation**\nEOF\n\n            echo \"✅ Created CLAUDE.md at project root\"\n            ;;\n\n        *)\n            echo \"Skipped.\"\n            ;;\n    esac\nelse\n    # CLAUDE.md exists - offer to append discovered info\n    echo \"=== Validation Check ===\"\n    echo \"\"\n    echo \"Checking if discovered assets match CLAUDE.md documentation...\"\n    echo \"\"\n\n    # Check if containers mentioned match reality\n    if [ -n \"$CONTAINERS\" ]; then\n        RUNNING_CONTAINERS=$(echo \"$CONTAINERS\" | wc -l | xargs)\n        echo \"Running containers: $RUNNING_CONTAINERS\"\n\n        # Simple validation\n        if grep -q \"docker\" \"$CLAUDE_MD\" 2>/dev/null; then\n            echo \"✅ Docker infrastructure documented\"\n        else\n            echo \"⚠️  Docker containers found but not documented in CLAUDE.md\"\n        fi\n    fi\n\n    # Check volumes\n    if [ -n \"$VOLUMES\" ]; then\n        VOLUME_COUNT=$(echo \"$VOLUMES\" | wc -l | xargs)\n        echo \"Volumes found: $VOLUME_COUNT\"\n\n        if grep -q \"volume\" \"$CLAUDE_MD\" 2>/dev/null; then\n            echo \"✅ Volumes documented\"\n        else\n            echo \"⚠️  Volumes found but not documented in CLAUDE.md\"\n        fi\n    fi\n\n    echo \"\"\nfi\n\necho \"\"\necho \"╔══════════════════════════════════════════════════════════════════╗\"\necho \"║                   ORIENTATION COMPLETE                           ║\"\necho \"╚══════════════════════════════════════════════════════════════════╝\"\necho \"\"\necho \"Next steps:\"\necho \"  📖 Review: cat $CLAUDE_MD\"\necho \"  ✏️  Edit: nano $CLAUDE_MD\"\necho \"  🔍 Skills: /mem-skills (check available skills)\"\necho \"  🐳 Status: docker-compose ps (if Docker project)\"",
+        "prerequisites": {
+          "docker_running": false
+        }
+      },
+      "metadata": {
+        "use_count": 1,
+        "success_rate": 100.0,
+        "created_at": "2025-12-27T00:06:51.997569+00:00",
+        "updated_at": "2025-12-27T00:07:01.824680+00:00"
+      }
+    }
+  ]
+}

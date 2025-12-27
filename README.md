@@ -6,6 +6,10 @@
 [![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Node.js](https://img.shields.io/badge/node.js-6DA55F?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
 
+> **🚀 New User? Run `./start.sh` for an interactive setup guide!**
+>
+> The script checks your configuration, explains the workspace concept, and guides you through the 5-10 minute setup process. See [Quick Start](#quick-start) below.
+
 ---
 
 ## Overview
@@ -24,6 +28,202 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 ✅ **Vector Embeddings** - sentence-transformers generates 384-dim embeddings
 ✅ **Project Timeline** - Chronological view of all work sessions
 ✅ **Portable Configuration** - Environment-based setup, works on any system
+✅ **Skills System** - Intelligent automation with semantic skill discovery
+
+---
+
+## 🎯 Skills System - Intelligent Automation
+
+The Skills System transforms repetitive tasks into reusable, discoverable workflows. Instead of repeating the same commands, create skills once and trigger them with natural language.
+
+### What Are Skills?
+
+Skills are automation workflows that Claude can execute on your behalf. They combine:
+- **Bash scripts** - Simple shell command automation
+- **Tool sequences** - Multi-step workflows with variable substitution
+- **Agent spawns** - Launch specialized Claude Code agents for complex tasks
+
+### Key Features
+
+**✨ Semantic Matching**
+- Use natural language to find and trigger skills
+- "check if database is healthy" → Finds `check-db-health` (93% match)
+- "make a backup" → Finds `backup-database` (93% match)
+- No need to remember exact command names
+
+**⚡ Tool Sequences**
+- Chain multiple operations together
+- Example: Find files → Search content → Generate report
+- Variable substitution between steps: `$steps.name.field`, `$prev.field`, `$context.field`
+- Automatic error handling and rollback
+
+**🤖 Agent Spawning**
+- Launch specialized agents (Explore, Plan, general-purpose)
+- Complex multi-step tasks automated
+- Background and blocking execution modes
+- Full integration with Claude Code
+
+**📊 Performance Analytics**
+- Track skill usage and success rates
+- Measure time saved by automation
+- Identify top performers with leaderboard
+- Category-based insights
+- Project usage breakdown
+
+### Quick Start
+
+```bash
+# Search for skills using natural language
+/mem-skills-search "check database health"
+# Result: check-db-health (100% match)
+
+# View all available skills
+/mem-skills
+
+# Execute a skill
+python3 execute-skill.py check-db-health
+
+# View performance statistics
+/mem-skills-stats --all
+/mem-skills-stats check-db-health
+/mem-skills-stats --top 10
+```
+
+### Example Skills
+
+**Database Management:**
+- `check-db-health` - Verify PostgreSQL health, size, and connection status
+- `backup-database` - Create timestamped database backup
+- `show-db-connection` - Display database connection variables
+
+**Development Tools:**
+- `find-todos` - Search for TODO comments in codebase (3-step tool sequence)
+- `where-am-i` - Orient Claude to current project context
+
+**System Monitoring:**
+- `system-status` - Show status of all Claude Memory services
+- `restart-services` - Safely restart Docker containers
+- `check-volume-safety` - Detect data loss violations
+
+### Semantic Search Examples
+
+The Skills System uses AI embeddings to understand your intent:
+
+```bash
+# Natural language queries
+/mem-skills-search "verify the database is running"
+# → check-db-health (93.1% similarity)
+
+/mem-skills-search "find todo comments in code"
+# → find-todos (91.2% similarity)
+
+/mem-skills-search "db"
+# → check-db-health (75.7% similarity)
+# Handles abbreviations!
+
+# Adjust sensitivity
+/mem-skills-search "backup" --threshold 0.6
+# Lower threshold = more results
+```
+
+**Similarity Levels:**
+- 90-100%: 🎯 Excellent match (nearly identical intent)
+- 80-90%:  ✅ Very good match
+- 70-80%:  👍 Good match (default threshold)
+- 60-70%:  👌 Acceptable match
+
+### Create Custom Skills
+
+Skills can automate any repetitive task:
+
+**1. Bash Script Skills** (Simple commands)
+```bash
+# Example: Database health check
+#!/bin/bash
+docker exec claude-context-db psql -U memory_admin \
+  -d claude_memory -c "SELECT version();"
+```
+
+**2. Tool Sequence Skills** (Multi-step workflows)
+```json
+{
+  "steps": [
+    {"name": "find_files", "tool": "Glob", "pattern": "**/*.py"},
+    {"name": "search_todos", "tool": "Grep", "pattern": "TODO", "files": "$steps.find_files.matches"},
+    {"name": "count", "tool": "Bash", "command": "echo Found: $prev.count"}
+  ]
+}
+```
+
+**3. Agent Spawn Skills** (Complex tasks)
+```json
+{
+  "agent_type": "Explore",
+  "prompt": "Find all authentication-related files",
+  "model": "sonnet",
+  "mode": "blocking"
+}
+```
+
+See `.claude/commands/mem-skills-*.md` for full documentation on creating, editing, and managing skills.
+
+### Installation Requirements
+
+The Skills System requires:
+
+**Already Included** (if you completed Quick Start):
+- ✅ PostgreSQL with pgvector extension
+- ✅ Docker setup with Ollama
+
+**Additional Setup for Semantic Search**:
+```bash
+# Install embedding model (one-time, ~2GB download)
+docker exec claude-ollama ollama pull mxbai-embed-large
+
+# Generate embeddings for existing skills
+python3 generate-trigger-embeddings.py --backfill
+```
+
+**Verify setup:**
+```bash
+# Test semantic search
+/mem-skills-search "check database"
+
+# Should return skills with similarity scores
+# ✅ If results appear → Setup complete!
+# ❌ If errors → Check Ollama is running:
+docker logs claude-ollama
+```
+
+### Performance
+
+The Skills System is designed for speed:
+- **Semantic search:** 135ms average (embedding + query + display)
+- **Embedding generation:** 47ms per trigger phrase
+- **Skill execution:** <500ms for bash scripts
+- **Tool sequences:** Variable (depends on steps)
+
+### Use Cases
+
+**Automation:**
+- Repetitive database checks → `check-db-health` skill
+- Daily backups → `backup-database` skill
+- Environment setup → Custom skill with multi-step sequence
+
+**Discovery:**
+- "I need to check something about the database" → Semantic search finds relevant skills
+- Forgot exact command → Natural language search
+- Explore available tools → Browse by category
+
+**Team Onboarding:**
+- Share skill libraries across projects
+- Document common workflows as skills
+- Standardize team practices
+
+**Productivity:**
+- Track time saved per skill
+- Identify most-used automations
+- Optimize frequent workflows
 
 ---
 
@@ -75,7 +275,41 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 
 ## Quick Start
 
-**Installation Checklist:**
+### 🚀 Easy Startup (First-Time Setup)
+
+**New to Claude Memory? Start here!**
+
+Run the interactive setup guide to check your configuration:
+
+```bash
+./start.sh
+```
+
+This script will:
+1. ✅ Check all prerequisites (Docker, Python, Node.js)
+2. ✅ Validate your .env configuration
+3. ✅ Explain the workspace concept and where to install Claude Memory
+4. ✅ Check Docker containers status
+5. ✅ Verify Skills System readiness
+6. ✅ Provide clear next steps with commands to run
+
+**Expected time:** 5-10 minutes for complete first-time setup
+
+**Two-Step Process:**
+```bash
+# Step 1: Start the system
+docker-compose up -d                          # 2-3 minutes (pulls images, starts containers)
+
+# Step 2: Load example skills
+./scripts/import-and-initialize-skills.sh     # 1-2 minutes (imports 9 skills + embeddings)
+```
+
+After this, follow the detailed installation steps below if you need more control.
+
+---
+
+### Installation Checklist
+
 ```markdown
 □ Prerequisites verified (Docker, Python 3, Node.js if using MCP)
 □ Cloned repository to permanent location
@@ -85,6 +319,7 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 □ Installed Python dependencies (pip3 install -r requirements.txt)
 □ Configure auto-capture hooks (REQUIRED for automatic capture feature)
 □ Install slash commands and edit paths
+□ Initialize Skills System (REQUIRED for skills functionality)
 □ (Optional) Configure enhanced summaries (API key + requirements-enhance.txt)
 □ (Optional) Set up MCP search tools
 ```
@@ -293,6 +528,111 @@ You can enhance claude-memory with these additional integrations:
 **Setup guides:**
 - **MCP Tools:** See [MCP-SETUP.md](./MCP-SETUP.md)
 - **API:** See "API Reference" section below
+
+---
+
+### 9. Initialize Skills System (Required for Skills)
+
+**⚠️ IMPORTANT:** The Skills System requires skills to be loaded into the database. Fresh clones start with empty skills tables.
+
+#### One-Step Initialization
+
+```bash
+# Run the automated initialization script
+./scripts/import-and-initialize-skills.sh
+```
+
+**This script will:**
+1. ✅ Check database connection
+2. ✅ Import 9 example skills from `skills/example-skills.json`
+3. ✅ Generate embeddings for semantic search
+
+**Expected output:**
+```
+[1/3] Checking database connection...
+✅ Database connection successful
+
+[2/3] Importing example skills...
+[1/9] ✅ Imported: backup-database (ID: 3)
+[2/9] ✅ Imported: check-db-health (ID: 4)
+...
+[9/9] ✅ Imported: where-am-i (ID: 11)
+
+[3/3] Generating embeddings for semantic search...
+✅ Backfill complete: 41 embeddings generated
+
+✅ Skills System Initialization Complete!
+```
+
+**Time:** ~2 minutes (first run with embedding model download)
+
+#### Verify Installation
+
+```bash
+# List all skills
+/mem-skills
+
+# Expected output: 9 skills across 5 categories
+# - Database Management (2 skills)
+# - Development Tools (1 skill)
+# - System Monitoring (3 skills)
+# - Maintenance (2 skills)
+# - Project Management (1 skill)
+
+# Test semantic search
+/mem-skills-search "check database health"
+
+# Expected output: check-db-health with 93%+ similarity
+```
+
+#### What Skills Are Included?
+
+**Database Management:**
+- `check-db-health` - Verify PostgreSQL health, version, size
+- `show-db-connection` - Display database connection variables
+
+**Development Tools:**
+- `find-todos` - Search for TODO comments (3-step tool sequence example)
+
+**System Monitoring:**
+- `system-status` - Show all Claude Memory service status
+- `check-volume-safety` - Detect data loss violations
+- `check-any-project-volumes` - Portable volume safety check
+
+**Maintenance:**
+- `backup-database` - Create timestamped database backup
+- `restart-services` - Safely restart Docker containers
+
+**Project Management:**
+- `where-am-i` - Orient Claude to current project context
+
+#### Manual Import (Advanced)
+
+If you prefer manual control:
+
+```bash
+# Import skills only
+python3 import-skill.py skills/example-skills.json
+
+# Generate embeddings separately
+python3 generate-trigger-embeddings.py --backfill
+
+# Or import with options:
+python3 import-skill.py skills/example-skills.json --skip-existing
+python3 import-skill.py skills/example-skills.json --dry-run
+```
+
+#### Re-running on Existing Installation
+
+If skills are already imported:
+
+```bash
+# Skip existing skills (safe)
+./scripts/import-and-initialize-skills.sh --skip-existing
+
+# Or overwrite (updates existing skills):
+python3 import-skill.py skills/example-skills.json --overwrite
+```
 
 ---
 

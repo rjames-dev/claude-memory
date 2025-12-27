@@ -38,28 +38,8 @@ from pathlib import Path
 import psycopg2
 from psycopg2.extras import Json
 
-# Database configuration (matches existing claude-memory scripts)
-DB_HOST = os.environ.get('DB_HOST', 'localhost')
-DB_PORT = int(os.environ.get('DB_PORT', '5435'))
-
-DB_CONFIG = {
-    'host': DB_HOST,
-    'port': DB_PORT,
-    'database': 'claude_memory',
-    'user': 'memory_admin',
-    'password': os.environ.get('CONTEXT_DB_PASSWORD', 'memory_secure_2024')
-}
-
-
-def get_db_connection():
-    """Create database connection."""
-    try:
-        return psycopg2.connect(**DB_CONFIG)
-    except Exception as e:
-        print(f"❌ Database connection failed: {e}", file=sys.stderr)
-        print(f"   Host: {DB_HOST}:{DB_PORT}", file=sys.stderr)
-        sys.exit(1)
-
+# Use standardized database utilities
+from db_utils import get_db_connection
 
 def validate_skill_name(name):
     """

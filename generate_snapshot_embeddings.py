@@ -21,26 +21,8 @@ import psycopg2
 from psycopg2.extras import Json
 from sentence_transformers import SentenceTransformer
 
-# Database configuration (matches system config)
-# Auto-detect if running in Docker or locally
-DB_HOST = os.environ.get('DB_HOST', 'localhost')
-DB_PORT = int(os.environ.get('DB_PORT', '5435'))
-
-DB_CONFIG = {
-    'host': DB_HOST,
-    'port': DB_PORT,
-    'database': 'claude_memory',
-    'user': 'memory_admin',
-    'password': os.environ.get('CONTEXT_DB_PASSWORD', 'memory_secure_2024')
-}
-
-# Use same model as rest of system
-MODEL_NAME = 'sentence-transformers/all-MiniLM-L6-v2'
-EXPECTED_DIMENSIONS = 384
-
-def get_db_connection():
-    """Create database connection."""
-    return psycopg2.connect(**DB_CONFIG)
+# Use standardized database utilities
+from db_utils import get_db_connection
 
 def load_embedding_model():
     """Load the sentence transformer model."""

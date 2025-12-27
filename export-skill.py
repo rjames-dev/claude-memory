@@ -31,19 +31,34 @@ from psycopg2.extras import RealDictCursor
 DB_HOST = os.environ.get('DB_HOST', 'localhost')
 DB_PORT = int(os.environ.get('DB_PORT', '5435'))
 
-DB_CONFIG = {
-    'host': DB_HOST,
-    'port': DB_PORT,
-    'database': 'claude_memory',
-    'user': 'memory_admin',
-    'password': os.environ.get('CONTEXT_DB_PASSWORD', 'memory_secure_2024')
-}
+
+def get_db_password():
+    """Get database password from .env file or environment."""
+    password = os.environ.get('CONTEXT_DB_PASSWORD')
+    if password:
+        return password
+
+    # Try reading from .env file
+    env_file = os.path.join(os.path.dirname(__file__), '.env')
+    if os.path.exists(env_file):
+        with open(env_file, 'r') as f:
+            for line in f:
+                if line.startswith('CONTEXT_DB_PASSWORD='):
+                    return line.strip().split('=', 1)[1]
+
+    return 'memory_secure_2024'  # Fallback
 
 
 def get_db_connection():
     """Create database connection."""
     try:
-        return psycopg2.connect(**DB_CONFIG)
+        return psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            database='claude_memory',
+            user='memory_admin',
+            password=get_db_password()
+        )
     except Exception as e:
         print(f"❌ Database connection failed: {e}", file=sys.stderr)
         sys.exit(1)
