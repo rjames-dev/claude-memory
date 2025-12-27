@@ -6,9 +6,9 @@
 [![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Node.js](https://img.shields.io/badge/node.js-6DA55F?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
 
-> **🚀 New User? Run `./start.sh` for an interactive setup guide!**
+> **🚀 New User? Start with our 3-step Quick Start!**
 >
-> The script checks your configuration, explains the workspace concept, and guides you through the 5-10 minute setup process. See [Quick Start](#quick-start) below.
+> Run `./start.sh` to validate your setup, then follow 3 simple commands for a working system in 5-10 minutes. See [Quick Start](#quick-start) below.
 
 ---
 
