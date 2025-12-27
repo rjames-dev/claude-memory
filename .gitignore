@@ -15,6 +15,9 @@ dev-docs/
 # Data directory (PostgreSQL data)
 data/
 
+# Database backups (user-generated)
+backups/
+
 # Logs
 processor/logs/
 *.log
