@@ -546,29 +546,33 @@ You can enhance claude-memory with these additional integrations:
 1. ✅ Check database connection
 2. ✅ Create skills database tables (if needed)
 3. ✅ Import 9 example skills from `skills/example-skills.json`
-4. ✅ Generate embeddings for semantic search
+4. ✅ Download embedding model (if needed, ~669MB one-time)
+5. ✅ Generate embeddings for semantic search
 
 **Expected output:**
 ```
-[1/4] Checking database connection...
+[1/5] Checking database connection...
 ✅ Database connection successful
 
-[2/4] Checking skills database schema...
+[2/5] Checking skills database schema...
 ✅ Skills tables created successfully
 
-[3/4] Importing example skills...
+[3/5] Importing example skills...
 [1/9] ✅ Imported: backup-database (ID: 3)
 [2/9] ✅ Imported: check-db-health (ID: 4)
 ...
 [9/9] ✅ Imported: where-am-i (ID: 11)
 
-[4/4] Generating embeddings for semantic search...
+[4/5] Checking Ollama embedding model...
+✅ Embedding model downloaded successfully
+
+[5/5] Generating embeddings for semantic search...
 ✅ Backfill complete: 41 embeddings generated
 
 ✅ Skills System Initialization Complete!
 ```
 
-**Time:** ~2 minutes (first run with embedding model download)
+**Time:** ~3-5 minutes (first run with model download), ~1 minute (subsequent runs)
 
 #### Verify Installation
 

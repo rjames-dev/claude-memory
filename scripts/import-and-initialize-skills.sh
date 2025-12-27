@@ -104,8 +104,30 @@ else
 fi
 echo ""
 
+# Check if Ollama embedding model is available
+echo -e "${BLUE}[4/5] Checking Ollama embedding model...${NC}"
+
+# Check if mxbai-embed-large model exists
+MODEL_EXISTS=$(docker exec claude-ollama ollama list 2>/dev/null | grep -c "mxbai-embed-large" || echo "0")
+
+if [ "$MODEL_EXISTS" -gt 0 ]; then
+    echo -e "${GREEN}✅ Embedding model already available${NC}"
+else
+    echo "Embedding model not found. Pulling mxbai-embed-large (~669MB, one-time download)..."
+
+    if docker exec claude-ollama ollama pull mxbai-embed-large; then
+        echo -e "${GREEN}✅ Embedding model downloaded successfully${NC}"
+    else
+        echo -e "${RED}❌ Failed to download embedding model${NC}"
+        echo "   Try running manually:"
+        echo "   docker exec claude-ollama ollama pull mxbai-embed-large"
+        exit 1
+    fi
+fi
+echo ""
+
 # Generate embeddings
-echo -e "${BLUE}[4/4] Generating embeddings for semantic search...${NC}"
+echo -e "${BLUE}[5/5] Generating embeddings for semantic search...${NC}"
 if python3 generate-trigger-embeddings.py --backfill; then
     echo -e "${GREEN}✅ Embeddings generated successfully${NC}"
 else
