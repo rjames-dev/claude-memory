@@ -1,8 +1,8 @@
 {
   "version": "1.0",
-  "exported_at": "2025-12-28T07:30:00.000000",
+  "exported_at": "2025-12-28T11:00:00.000000",
   "exported_by": "claude-memory-skills-system",
-  "skill_count": 10,
+  "skill_count": 11,
   "skills": [
     {
       "agent_name": "backup-database",
@@ -276,6 +276,35 @@
         "success_rate": 0.0,
         "created_at": "2025-12-27T00:00:00.000000+00:00",
         "updated_at": "2025-12-27T00:00:00.000000+00:00"
+      }
+    },
+    {
+      "agent_name": "get-up-to-speed",
+      "display_name": "Get Up to Speed - Project Onboarding",
+      "description": "Comprehensive project onboarding for fresh Claude instances. Analyzes project history, stats, topics, files, and available tools. Reduces 15-minute brute-force onboarding to 2 minutes.",
+      "category": "onboarding",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "get up to speed",
+        "catch me up",
+        "onboard me",
+        "project overview",
+        "what is this project",
+        "orient me"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n# Get Up to Speed Skill\n# Comprehensive project onboarding for fresh Claude instances\n\n# Find claude-memory installation directory\nfind_script() {\n    local dir=\"$PWD\"\n    while [ \"$dir\" != \"/\" ]; do\n        if [ -f \"$dir/get-up-to-speed.py\" ]; then\n            echo \"$dir/get-up-to-speed.py\"\n            return 0\n        fi\n        dir=$(dirname \"$dir\")\n    done\n    \n    # Fallback: check script's own directory\n    SCRIPT_DIR=\"$( cd \"$( dirname \"${BASH_SOURCE[0]}\" )\" && pwd )\"\n    if [ -f \"$SCRIPT_DIR/../get-up-to-speed.py\" ]; then\n        echo \"$SCRIPT_DIR/../get-up-to-speed.py\"\n        return 0\n    fi\n    \n    return 1\n}\n\nGETUP_SCRIPT=$(find_script)\n\nif [ -z \"$GETUP_SCRIPT\" ]; then\n    echo \"❌ get-up-to-speed.py not found\"\n    echo \"   Expected location: claude-memory project root\"\n    exit 1\nfi\n\n# Run onboarding script with all arguments passed through\npython3 \"$GETUP_SCRIPT\" \"$@\"\n",
+        "prerequisites": {
+          "docker_running": true
+        }
+      },
+      "metadata": {
+        "use_count": 0,
+        "success_rate": 0.0,
+        "created_at": "2025-12-28T11:00:00.000000+00:00",
+        "updated_at": "2025-12-28T11:00:00.000000+00:00"
       }
     }
   ]

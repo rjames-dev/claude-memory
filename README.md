@@ -104,6 +104,9 @@ python3 execute-skill.py check-db-health
 - `find-todos` - Search for TODO comments in codebase (3-step tool sequence)
 - `where-am-i` - Orient Claude to current project context
 
+**Onboarding & Context:**
+- `get-up-to-speed` - Comprehensive project onboarding (stats, timeline, topics, files, tools)
+
 **System Monitoring:**
 - `system-status` - Show status of all Claude Memory services
 - `restart-services` - Safely restart Docker containers
