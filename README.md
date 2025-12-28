@@ -904,6 +904,55 @@ This reduces the typical 15-minute brute-force onboarding to under 2 minutes.
 
 ---
 
+## Monitoring & Dashboards
+
+Claude Memory includes comprehensive monitoring tools to track system health and capture activity.
+
+### Available Monitoring Tools
+
+**1. Web Dashboard (Basic)**
+- **URL:** http://localhost:3200/dashboard
+- **Features:** Real-time system status, capture statistics, recent captures
+- **Auto-refresh:** Every 10 seconds
+- **Best for:** Quick glance at system health
+
+**2. Analytics Dashboard (Advanced)**
+- **URL:** http://localhost:3200/dashboard-detail.html
+- **Features:** 7 analytics tabs (Overview, Quality, Projects, Bugs, Files, Decisions, Agents)
+- **Auto-refresh:** Every 15 seconds
+- **Best for:** Deep analytics, quality assessment, project planning
+
+**3. Terminal Monitor**
+- **Command:** `npm run monitor`
+- **Features:** Live terminal UI with ANSI colors
+- **Refresh:** Every 5 seconds
+- **Best for:** Terminal-based workflows, SSH sessions
+
+**4. CLI Dashboard**
+- **Command:** `node scripts/dashboard-cli.js`
+- **Features:** Advanced analytics with flags (--quality, --projects, --bugs, etc.)
+- **Best for:** Scripting and automation
+
+### Quick Start
+
+```bash
+# Open web dashboard
+open http://localhost:3200/dashboard
+
+# Open analytics dashboard
+open http://localhost:3200/dashboard-detail.html
+
+# Start terminal monitor
+npm run monitor
+
+# Run CLI dashboard
+node scripts/dashboard-cli.js --help
+```
+
+**Full documentation:** See [DASHBOARDS.md](./DASHBOARDS.md) for detailed usage, features, and troubleshooting.
+
+---
+
 ### Searching Memory
 
 Claude Memory provides **two complementary search methods** that work together to help you find exactly what you need:

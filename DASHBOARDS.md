@@ -9,20 +9,15 @@ Real-time monitoring for claude-memory with both web and terminal interfaces.
 
 ## Overview
 
-Claude Memory now includes two monitoring interfaces:
+Claude Memory now includes three monitoring interfaces:
 
 1. **Web Dashboard** - Beautiful web UI at `http://localhost:3200/dashboard`
-2. **Terminal Monitor** - Real-time terminal UI with live updates
-
-Both dashboards show the same information:
-- System status (Database, Ollama, Processor)
-- Capture statistics (total, today, this week)
-- Session tracking
-- Recent captures with live updates
+2. **Analytics Dashboard** - Advanced multi-tab analytics at `http://localhost:3200/dashboard-detail.html`
+3. **Terminal Monitor** - Real-time terminal UI with live updates
 
 ---
 
-## Web Dashboard
+## Web Dashboard (Basic)
 
 ### Access
 
@@ -91,6 +86,76 @@ curl http://localhost:3200/api/recent?limit=10
 ```bash
 curl http://localhost:3200/health
 ```
+
+---
+
+## Analytics Dashboard (Advanced)
+
+### Access
+
+**Open in browser:**
+```bash
+open http://localhost:3200/dashboard-detail.html
+```
+
+### Features
+
+Multi-tab interface for comprehensive system analytics:
+
+**7 Analytics Tabs:**
+1. **Overview** - System status and recent captures (like basic dashboard)
+2. **Quality** - Data quality metrics and scores from v_snapshot_quality
+3. **Projects** - Per-project statistics and breakdowns
+4. **Bugs** - Bug analysis and pattern categorization
+5. **Files** - File activity heatmap showing most frequently mentioned files
+6. **Decisions** - Recent architectural decisions captured from snapshots
+7. **Agents** - Agent/subprocess work analytics and performance
+
+### Tab Details
+
+**Overview Tab:**
+- System status (Database, Ollama, Processor)
+- Capture statistics (total, today, this week)
+- Recent captures with timestamps
+
+**Quality Tab:**
+- Quality score distribution
+- Snapshots by quality level (High ≥8, Medium 5-7, Low <5)
+- Quality metrics: summary length, tags, files, decisions
+
+**Projects Tab:**
+- Snapshots per project
+- Activity timeline by project
+- Project-specific quality metrics
+
+**Bugs Tab:**
+- Bug categorization (database, dependency, command, syntax, runtime, other)
+- Bug frequency analysis
+- Recent bug fixes
+
+**Files Tab:**
+- File mention frequency (heatmap)
+- Most active files by project
+- File type breakdown
+
+**Decisions Tab:**
+- Recent architectural decisions
+- Decision search by keyword
+- Decision history timeline
+
+**Agents Tab:**
+- Agent usage statistics
+- Agent performance metrics
+- Tool usage by agents
+- Agent configuration analysis
+
+### UI Features
+
+- **Dark Theme** - Consistent with basic dashboard
+- **Tab Navigation** - Easy switching between analytics views
+- **Auto-Refresh** - Updates every 15 seconds
+- **Card Layout** - Clean, organized card-based design
+- **Responsive** - Adapts to different screen sizes
 
 ---
 
@@ -165,14 +230,13 @@ npm run monitor
 
 ## Use Cases
 
-### Web Dashboard
+### Web Dashboard (Basic)
 
 **Best for:**
 - Quick glance at system status
 - Viewing while working in browser
-- Sharing screen with team
+- Simple real-time monitoring
 - Keeping open in separate window
-- Long-term monitoring
 
 **How to use:**
 ```bash
@@ -182,6 +246,33 @@ open http://localhost:3200/dashboard
 # Leave browser tab open
 # Dashboard auto-refreshes every 10 seconds
 ```
+
+### Analytics Dashboard (Advanced)
+
+**Best for:**
+- Deep dive into project analytics
+- Quality assessment and improvement identification
+- Bug pattern analysis
+- Understanding file activity and project structure
+- Reviewing architectural decisions
+- Agent performance monitoring
+- Team onboarding and project reviews
+
+**How to use:**
+```bash
+# Open analytics dashboard
+open http://localhost:3200/dashboard-detail.html
+
+# Navigate between tabs for different analytics
+# Auto-refreshes every 15 seconds
+```
+
+**Example workflows:**
+- **Quality Assessment**: Use Quality tab to find low-quality snapshots worth enhancing
+- **Project Planning**: Use Projects tab to understand work distribution
+- **Bug Analysis**: Use Bugs tab to identify recurring issues
+- **Code Review**: Use Files tab to find frequently modified areas
+- **Architecture Review**: Use Decisions tab to track design choices
 
 ### Terminal Monitor
 
@@ -418,12 +509,14 @@ docker compose logs context-db --tail=10
 
 ## Files
 
-**Dashboard:**
-- `processor/public/dashboard.html` - Web dashboard UI
-- `processor/src/server.js` - API endpoints + dashboard route
+**Dashboards:**
+- `processor/public/dashboard.html` - Basic web dashboard UI
+- `processor/public/dashboard-detail.html` - Advanced analytics dashboard (7 tabs)
+- `processor/src/server.js` - API endpoints + dashboard routes
 
 **Monitor:**
 - `monitor.js` - Terminal UI script
+- `scripts/dashboard-cli.js` - CLI dashboard tool
 - `package.json` - npm scripts
 
 **Documentation:**
