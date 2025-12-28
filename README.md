@@ -227,6 +227,7 @@ The Skills System is designed for speed:
 - Share skill libraries across projects
 - Document common workflows as skills
 - Standardize team practices
+- Use `get-up-to-speed` skill to onboard team members in 2 minutes
 
 **Productivity:**
 - Track time saved per skill
@@ -878,6 +879,30 @@ curl -X POST http://localhost:3200/api/capture \\
     "cwd": "/Users/alice/workspace/Code/my-project"
   }'
 ```
+
+### Quick Start: Fresh Claude Instances
+
+**New to this project? Get oriented in 2 minutes:**
+
+```bash
+# Run the onboarding skill
+python3 execute-skill.py get-up-to-speed
+
+# Or use semantic search
+/mem-skills-search "get me up to speed"
+```
+
+**What you'll see:**
+- Project statistics (total snapshots, quality scores)
+- Recent activity timeline (top 10 snapshots)
+- Common topics (tag cloud)
+- Active files (heatmap)
+- Available MCP tools and slash commands
+- Enhancement opportunities with cost estimates
+
+This reduces the typical 15-minute brute-force onboarding to under 2 minutes.
+
+---
 
 ### Searching Memory
 
