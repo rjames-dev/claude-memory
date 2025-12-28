@@ -8,9 +8,15 @@
 # Development documentation (internal use only)
 dev-docs/
 
-# Development artifacts (old context saves, test files)
+# Development artifacts (conversation exports, articles, etc.)
+# Exclude all .txt files except requirements*.txt
+*.txt
+!requirements*.txt
+
+# Legacy patterns (covered by *.txt above, kept for clarity)
 *-context-save-*.txt
 *-claude-memory*.txt
+*-before-compact-*.txt
 
 # Data directory (PostgreSQL data)
 data/
