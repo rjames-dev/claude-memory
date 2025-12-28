@@ -108,6 +108,7 @@ python3 execute-skill.py check-db-health
 - `system-status` - Show status of all Claude Memory services
 - `restart-services` - Safely restart Docker containers
 - `check-volume-safety` - Detect data loss violations
+- `monitor-capture-progress` - Track /mem-capture completion with real-time progress updates
 
 ### Semantic Search Examples
 
@@ -833,7 +834,37 @@ See [Phase 6A troubleshooting](./dev-docs/testing/TROUBLESHOOTING-MEM-CAPTURE.md
 
 ### Manual Capture
 
-Call the processor API directly:
+**Recommended: Capture with Progress Monitoring**
+
+Use `/mem-capture-monitor` for the best end-of-session experience:
+
+```bash
+# One command: Capture + Monitor progress
+/mem-capture-monitor
+```
+
+**What it does:**
+1. Automatically detects current session (no manual paths needed)
+2. Captures conversation to database
+3. Monitors progress with real-time updates:
+   - 🔄 Processing summary...
+   - 🔄 Generating embeddings...
+   - ✅ Capture complete! (67s total)
+4. Shows final snapshot details and quality score
+5. Tells you when safe to close Claude Code
+
+**Alternative: Capture Only**
+
+Use `/mem-capture` if you want to continue working immediately:
+
+```bash
+# Capture without waiting
+/mem-capture
+```
+
+**Advanced: Direct API Call**
+
+Call the processor API directly (for scripts/automation):
 ```bash
 curl -X POST http://localhost:3200/api/capture \\
   -H "Content-Type: application/json" \\

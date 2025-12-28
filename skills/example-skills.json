@@ -1,8 +1,8 @@
 {
   "version": "1.0",
-  "exported_at": "2025-12-27T09:52:50.383165",
+  "exported_at": "2025-12-28T07:30:00.000000",
   "exported_by": "claude-memory-skills-system",
-  "skill_count": 9,
+  "skill_count": 10,
   "skills": [
     {
       "agent_name": "backup-database",
@@ -248,6 +248,34 @@
         "success_rate": 100.0,
         "created_at": "2025-12-27T00:06:51.997569+00:00",
         "updated_at": "2025-12-27T00:07:01.824680+00:00"
+      }
+    },
+    {
+      "agent_name": "monitor-capture-progress",
+      "display_name": "Monitor Capture Progress",
+      "description": "Track /mem-capture completion with real-time progress updates. Prevents data loss from closing Claude Code before capture completes.",
+      "category": "monitoring",
+      "scope": "global",
+      "project_path": null,
+      "triggers": [
+        "monitor capture",
+        "capture progress",
+        "check capture status",
+        "is capture done",
+        "monitor capture progress"
+      ],
+      "command": {
+        "type": "bash_script",
+        "content": "#!/bin/bash\n# Monitor Capture Progress Skill\n# Wrapper script to run the Python monitoring script\n\n# Find claude-memory installation directory\n# Walk up from current directory to find monitor-capture-progress.py\nfind_script() {\n    local dir=\"$PWD\"\n    while [ \"$dir\" != \"/\" ]; do\n        if [ -f \"$dir/monitor-capture-progress.py\" ]; then\n            echo \"$dir/monitor-capture-progress.py\"\n            return 0\n        fi\n        dir=$(dirname \"$dir\")\n    done\n    \n    # Fallback: check script's own directory\n    SCRIPT_DIR=\"$( cd \"$( dirname \"${BASH_SOURCE[0]}\" )\" && pwd )\"\n    if [ -f \"$SCRIPT_DIR/../monitor-capture-progress.py\" ]; then\n        echo \"$SCRIPT_DIR/../monitor-capture-progress.py\"\n        return 0\n    fi\n    \n    return 1\n}\n\nMONITOR_SCRIPT=$(find_script)\n\nif [ -z \"$MONITOR_SCRIPT\" ]; then\n    echo \"❌ monitor-capture-progress.py not found\"\n    echo \"   Expected location: claude-memory project root\"\n    exit 1\nfi\n\n# Run monitoring script with all arguments passed through\npython3 \"$MONITOR_SCRIPT\" \"$@\"\n",
+        "prerequisites": {
+          "docker_running": true
+        }
+      },
+      "metadata": {
+        "use_count": 0,
+        "success_rate": 0.0,
+        "created_at": "2025-12-27T00:00:00.000000+00:00",
+        "updated_at": "2025-12-27T00:00:00.000000+00:00"
       }
     }
   ]
