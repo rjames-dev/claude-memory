@@ -339,7 +339,7 @@ SELECT
     sa.total_time_saved_ms / 1000 / 60 AS total_time_saved_minutes,
 
     -- Recency
-    sa.last_used AT TIME ZONE 'America/Los_Angeles' AS last_used_pst,
+    sa.last_used AS last_used_pst,
     CURRENT_TIMESTAMP - sa.last_used AS time_since_last_use,
 
     -- Version and confidence
@@ -404,8 +404,8 @@ SELECT
     sp.seen_in_projects,
 
     -- Timestamps
-    sp.created_at AT TIME ZONE 'America/Los_Angeles' AS created_pst,
-    sp.reviewed_at AT TIME ZONE 'America/Los_Angeles' AS reviewed_pst,
+    sp.created_at AS created_pst,
+    sp.reviewed_at AS reviewed_pst,
 
     -- Confidence level
     CASE

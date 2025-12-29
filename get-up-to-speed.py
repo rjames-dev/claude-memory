@@ -372,7 +372,7 @@ def format_output_for_display(data):
     if data["timeline"]:
         output.append("=== Recent Activity (Top 5) ===")
         for snap in data["timeline"][:5]:
-            snap_date = datetime.fromisoformat(snap['timestamp']).strftime('%Y-%m-%d')
+            snap_date = datetime.fromisoformat(snap['timestamp']).astimezone().strftime('%Y-%m-%d')
             output.append(f"Snapshot #{snap['id']} ({snap_date}) - Quality: {snap['quality_score']}/10")
             output.append(f"  Messages: {snap['message_count']}, Tags: {snap['tag_count']}, Files: {snap['file_count']}")
             if snap['summary_preview']:

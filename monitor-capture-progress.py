@@ -150,7 +150,7 @@ def display_progress(snapshot, elapsed):
         snapshot: Snapshot metadata dict
         elapsed: Elapsed seconds
     """
-    timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp_str = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
     # Determine stage based on available data
     if snapshot['summary_len'] == 0 or snapshot['summary_len'] is None:

@@ -259,8 +259,10 @@ def format_detailed(skills):
         print(f"  Confidence: {skill['confidence_score']}")
         print(f"  Active: {'Yes' if skill['is_active'] else 'No'}")
         print(f"  Created By: {skill['created_by']}")
-        print(f"  Created: {skill['created_at']}")
-        print(f"  Last Used: {skill['last_used'] or 'Never'}")
+        created_str = datetime.fromisoformat(skill['created_at']).astimezone().strftime('%Y-%m-%d %H:%M') if skill['created_at'] else 'Unknown'
+        last_used_str = datetime.fromisoformat(skill['last_used']).astimezone().strftime('%Y-%m-%d %H:%M') if skill['last_used'] else 'Never'
+        print(f"  Created: {created_str}")
+        print(f"  Last Used: {last_used_str}")
         print(f"  Triggers: {skill['trigger_count']}")
 
 

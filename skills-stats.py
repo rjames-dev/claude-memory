@@ -266,8 +266,9 @@ def get_skill_stats(skill_name: str, days: int = 7):
         print(f"  Confidence: {confidence:.2f}")
         print(f"  Created: {created.strftime('%Y-%m-%d')}")
         if last_used:
-            days_ago = (datetime.now(last_used.tzinfo) - last_used).days
-            print(f"  Last Used: {last_used.strftime('%Y-%m-%d %H:%M')} ({days_ago} days ago)")
+            last_used_local = last_used.astimezone()
+            days_ago = (datetime.now(last_used_local.tzinfo) - last_used_local).days
+            print(f"  Last Used: {last_used_local.strftime('%Y-%m-%d %H:%M')} ({days_ago} days ago)")
 
         if desc:
             print(f"\n📝 Description:")
@@ -333,7 +334,7 @@ def get_all_stats():
             total_time_saved += (minutes or 0)
 
             display_name = display or name
-            last_used_str = last_used.strftime('%Y-%m-%d') if last_used else 'Never'
+            last_used_str = last_used.astimezone().strftime('%Y-%m-%d') if last_used else 'Never'
 
             by_category[cat].append({
                 'name': name,
@@ -440,7 +441,7 @@ def get_category_stats(category: str):
             display_name = (display or name)[:28]
             success_str = format_percentage(success)
             saved_str = format_time_ms(avg_saved)
-            last_used_str = last_used.strftime('%Y-%m-%d') if last_used else 'Never'
+            last_used_str = last_used.astimezone().strftime('%Y-%m-%d') if last_used else 'Never'
 
             print(f"{display_name:<30} {uses:>6} {success_str:>8} {saved_str:>10} {last_used_str:<12}")
 

@@ -85,7 +85,7 @@ SELECT
     cs.project_path,
     cs.session_id,
     cs.timestamp,
-    cs.timestamp AT TIME ZONE 'America/Los_Angeles' AS pst_time,
+    cs.timestamp AS pst_time,
     (msg_index - 1) AS message_index,  -- 0-indexed for consistency
     msg->>'role' AS role,
     msg->>'content' AS content,
@@ -120,7 +120,7 @@ CREATE VIEW v_snapshot_quality AS
 SELECT
     id,
     project_path,
-    timestamp AT TIME ZONE 'America/Los_Angeles' AS pst_time,
+    timestamp AS pst_time,
     session_id,
     trigger_event,
 
@@ -172,9 +172,9 @@ SELECT
     project_path,
     COUNT(*) AS total_snapshots,
     COUNT(DISTINCT session_id) FILTER (WHERE session_id IS NOT NULL) AS tracked_sessions,
-    MIN(timestamp AT TIME ZONE 'America/Los_Angeles') AS first_activity,
-    MAX(timestamp AT TIME ZONE 'America/Los_Angeles') AS last_activity,
-    CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles' - MAX(timestamp AT TIME ZONE 'America/Los_Angeles') AS time_since_last_activity,
+    MIN(timestamp) AS first_activity,
+    MAX(timestamp) AS last_activity,
+    CURRENT_TIMESTAMP - MAX(timestamp) AS time_since_last_activity,
 
     -- Message statistics
     SUM(jsonb_array_length(raw_context->'messages')) AS total_messages,
@@ -217,7 +217,7 @@ SELECT
     cs.id AS snapshot_id,
     cs.project_path,
     cs.session_id,
-    cs.timestamp AT TIME ZONE 'America/Los_Angeles' AS pst_time,
+    cs.timestamp AS pst_time,
     cs.trigger_event,
     decision_index,
     decision_text
@@ -235,7 +235,7 @@ SELECT
     cs.id AS snapshot_id,
     cs.project_path,
     cs.session_id,
-    cs.timestamp AT TIME ZONE 'America/Los_Angeles' AS pst_time,
+    cs.timestamp AS pst_time,
     cs.trigger_event,
     bug_index,
     bug_text,
@@ -264,8 +264,8 @@ SELECT
     file_path,
     COUNT(*) AS mention_count,
     COUNT(DISTINCT cs.project_path) AS project_count,
-    MIN(cs.timestamp AT TIME ZONE 'America/Los_Angeles') AS first_mentioned,
-    MAX(cs.timestamp AT TIME ZONE 'America/Los_Angeles') AS last_mentioned,
+    MIN(cs.timestamp) AS first_mentioned,
+    MAX(cs.timestamp) AS last_mentioned,
     array_agg(DISTINCT cs.project_path) AS mentioned_in_projects,
 
     -- File categorization
@@ -293,7 +293,7 @@ COMMENT ON VIEW v_file_heatmap IS 'File activity tracking. Shows which files are
 CREATE VIEW v_work_timeline AS
 SELECT
     id,
-    timestamp AT TIME ZONE 'America/Los_Angeles' AS pst_time,
+    timestamp AS pst_time,
     project_path,
     session_id,
     trigger_event,
