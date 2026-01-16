@@ -21,6 +21,7 @@ import subprocess
 import time
 import argparse
 import os
+from datetime import datetime
 
 
 def run_capture():
@@ -66,13 +67,14 @@ def run_capture():
         return False, None
 
 
-def run_monitor(session_id=None, timeout=180):
+def run_monitor(session_id=None, timeout=180, capture_start_time=None):
     """
     Run monitor-capture-progress.py to track completion.
 
     Args:
         session_id: Optional specific session ID to monitor
         timeout: Timeout in seconds
+        capture_start_time: ISO timestamp of when capture started (prevents finding old snapshots)
 
     Returns:
         bool: Success
@@ -91,6 +93,10 @@ def run_monitor(session_id=None, timeout=180):
 
         if session_id:
             cmd.extend(['--session-id', session_id])
+
+        # Pass capture start time to prevent finding old snapshots
+        if capture_start_time:
+            cmd.extend(['--since', capture_start_time])
 
         # Run monitor script (inherit stdout/stderr for real-time output)
         result = subprocess.run(cmd, check=False)
@@ -134,6 +140,9 @@ This command is ideal for end-of-session workflows.
     print("╚══════════════════════════════════════════════════════════════╝")
     print("")
 
+    # Record start time BEFORE capture (to filter out old snapshots in monitor)
+    capture_start_time = datetime.now().isoformat()
+
     # Step 1: Capture
     capture_success, session_id = run_capture()
 
@@ -142,8 +151,8 @@ This command is ideal for end-of-session workflows.
         print("❌ Capture failed - cannot proceed to monitoring")
         return 1
 
-    # Step 2: Monitor
-    monitor_success = run_monitor(session_id, args.timeout)
+    # Step 2: Monitor (pass start time to prevent finding old snapshots)
+    monitor_success = run_monitor(session_id, args.timeout, capture_start_time)
 
     # Summary
     print("")

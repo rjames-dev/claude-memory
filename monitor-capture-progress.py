@@ -30,13 +30,14 @@ from datetime import datetime
 from db_utils import get_db_connection
 
 
-def get_latest_capture(cursor, session_id=None):
+def get_latest_capture(cursor, session_id=None, since_time=None):
     """
     Query most recent auto-capture from database.
 
     Args:
         cursor: Database cursor
         session_id: Optional specific session ID to monitor
+        since_time: Optional datetime - only find captures after this time
 
     Returns:
         dict: Snapshot metadata or None if not found
@@ -58,6 +59,25 @@ def get_latest_capture(cursor, session_id=None):
             LIMIT 1;
         """
         cursor.execute(query, (f'auto-capture-{session_id}%',))
+    elif since_time:
+        # Filter by timestamp to only find NEW captures (prevents showing old snapshots)
+        query = """
+            SELECT
+                id,
+                trigger_event,
+                timestamp,
+                jsonb_array_length(raw_context->'messages') as message_count,
+                LENGTH(summary) as summary_len,
+                CASE WHEN embedding IS NOT NULL THEN 1 ELSE 0 END as has_embedding,
+                COALESCE(array_length(tags, 1), 0) as tag_count,
+                COALESCE(array_length(mentioned_files, 1), 0) as file_count
+            FROM context_snapshots
+            WHERE trigger_event LIKE 'auto-capture%%'
+              AND timestamp > %s
+            ORDER BY timestamp DESC
+            LIMIT 1;
+        """
+        cursor.execute(query, (since_time,))
     else:
         query = """
             SELECT
@@ -238,8 +258,22 @@ Examples:
         default=5,
         help='Poll interval in seconds (default: 5)'
     )
+    parser.add_argument(
+        '--since',
+        help='Only find captures after this ISO timestamp (prevents finding old snapshots)'
+    )
 
     args = parser.parse_args()
+
+    # Parse --since timestamp if provided
+    since_time = None
+    if args.since:
+        try:
+            since_time = datetime.fromisoformat(args.since)
+        except ValueError:
+            print(f"⚠️  Invalid --since timestamp: {args.since}")
+            print("   Expected ISO format: 2026-01-15T10:30:00")
+            since_time = None
 
     # Connect to database
     try:
@@ -274,12 +308,20 @@ Examples:
             conn.close()
             return 0
 
-        # Get latest capture
-        snapshot = get_latest_capture(cur, args.session_id)
+        # Get latest capture (with optional timestamp filter)
+        snapshot = get_latest_capture(cur, args.session_id, since_time)
 
         if not snapshot:
+            if elapsed < 30:
+                # Give processor time to insert the snapshot
+                print(f"⏳ Waiting for capture to appear in database... ({elapsed}s)")
+                print("")
+                time.sleep(args.poll_interval)
+                continue
             print("⚠️  No recent captures found")
             print("   Run /mem-capture first")
+            if since_time:
+                print(f"   (Looking for captures after {since_time.isoformat()})")
             print("")
             cur.close()
             conn.close()
