@@ -24,9 +24,12 @@ import os
 from datetime import datetime
 
 
-def run_capture():
+def run_capture(project_path=None):
     """
     Run auto-capture-current-session.py to trigger capture.
+
+    Args:
+        project_path: Optional explicit project path to capture
 
     Returns:
         tuple: (success, session_id or None)
@@ -35,9 +38,14 @@ def run_capture():
     print("=" * 60)
 
     try:
+        # Build capture command
+        cmd = [sys.executable, 'auto-capture-current-session.py']
+        if project_path:
+            cmd.extend(['--project', project_path])
+
         # Run capture script
         result = subprocess.run(
-            [sys.executable, 'auto-capture-current-session.py'],
+            cmd,
             capture_output=True,
             text=True,
             check=False
@@ -121,6 +129,9 @@ Examples:
   # Custom timeout (5 minutes)
   python3 capture-and-monitor.py --timeout 300
 
+  # Capture specific project (when called from different directory)
+  python3 capture-and-monitor.py --project /path/to/project
+
 This command is ideal for end-of-session workflows.
         """
     )
@@ -129,6 +140,12 @@ This command is ideal for end-of-session workflows.
         type=int,
         default=180,
         help='Monitoring timeout in seconds (default: 180)'
+    )
+    parser.add_argument(
+        '--project',
+        type=str,
+        default=None,
+        help='Explicit project path to capture (default: original working directory)'
     )
 
     args = parser.parse_args()
@@ -143,8 +160,13 @@ This command is ideal for end-of-session workflows.
     # Record start time BEFORE capture (to filter out old snapshots in monitor)
     capture_start_time = datetime.now().isoformat()
 
+    # Show project being captured
+    if args.project:
+        print(f"📂 Target project: {args.project}")
+        print("")
+
     # Step 1: Capture
-    capture_success, session_id = run_capture()
+    capture_success, session_id = run_capture(project_path=args.project)
 
     if not capture_success:
         print("")

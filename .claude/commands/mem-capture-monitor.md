@@ -30,7 +30,7 @@ Capture current session and monitor progress in one command.
 Simply run this command - everything is automatic!
 
 Execute:
-python3 /Users/jamesmba/Data/00\ GITHUB/Code/claude-memory/capture-and-monitor.py
+python3 /Users/jamesmba/Data/00\ GITHUB/Code/claude-memory/capture-and-monitor.py --project "$PWD"
 
 **Example output:**
 ```
@@ -83,3 +83,7 @@ To enhance this summary with Claude Sonnet:
 **Background vs Foreground:**
 - This command runs monitoring in **foreground** (blocks until complete)
 - Use `/mem-capture` if you want to capture and continue working immediately
+
+**Project Path:**
+- The skill automatically passes your current working directory to the capture script
+- This ensures the correct project is captured when running from different directories

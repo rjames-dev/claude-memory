@@ -7,6 +7,7 @@ No manual file paths required - everything is auto-detected.
 
 Usage:
     python3 auto-capture-current-session.py
+    python3 auto-capture-current-session.py --project /path/to/project
 
     Or from slash command:
     /context
@@ -15,6 +16,7 @@ Usage:
 import os
 import sys
 import json
+import argparse
 import requests
 from pathlib import Path
 from datetime import datetime
@@ -24,15 +26,18 @@ PROCESSOR_URL = os.getenv("CLAUDE_MEMORY_PROCESSOR_URL", "http://localhost:3200"
 CAPTURE_ENDPOINT = f"{PROCESSOR_URL}/capture"
 # MESSAGE_LIMIT removed - Phase 6C intelligent sampling handles large conversations
 
-def detect_current_session():
+def detect_current_session(project_path=None):
     """
     Detect current Claude Code session transcript.
+
+    Args:
+        project_path: Optional explicit project path. If not provided, uses cwd.
 
     Returns:
         dict: Session information including transcript_path, session_id, project_path
     """
-    # Get current working directory
-    cwd = os.getcwd()
+    # Get project directory - use explicit path if provided, otherwise cwd
+    cwd = project_path if project_path else os.getcwd()
 
     # Encode project path (replace / and spaces with -)
     # Claude Code encoding: both forward slashes and spaces become hyphens
@@ -190,6 +195,27 @@ def capture_session(session_info, messages):
 
 def main():
     """Main execution function"""
+    parser = argparse.ArgumentParser(
+        description='Auto-capture current Claude Code session to database',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Capture current directory's session
+  python3 auto-capture-current-session.py
+
+  # Capture specific project's session
+  python3 auto-capture-current-session.py --project /path/to/project
+        """
+    )
+    parser.add_argument(
+        '--project',
+        type=str,
+        default=None,
+        help='Explicit project path (default: current working directory)'
+    )
+
+    args = parser.parse_args()
+
     print("🔍 Claude Memory - Auto-Capture Current Session")
     print("=" * 60)
     print()
@@ -197,7 +223,9 @@ def main():
     try:
         # Step 1: Detect current session
         print("📂 Detecting current session...")
-        session_info = detect_current_session()
+        if args.project:
+            print(f"   Using explicit project path: {args.project}")
+        session_info = detect_current_session(project_path=args.project)
 
         print(f"✅ Found active session:")
         print(f"   Session ID: {session_info['session_id']}")
