@@ -180,10 +180,10 @@ def display_progress(snapshot, elapsed):
     else:
         stage = "🔄 Finalizing..."
 
-    print(f"{stage} ({elapsed}s elapsed)")
-    print(f"   Last check: {timestamp_str}")
-    print(f"   Snapshot ID: {snapshot['id']}")
-    print("")
+    print(f"{stage} ({elapsed}s elapsed)", flush=True)
+    print(f"   Last check: {timestamp_str}", flush=True)
+    print(f"   Snapshot ID: {snapshot['id']}", flush=True)
+    print("", flush=True)
 
 
 def display_completion(snapshot, elapsed, quality_score=None):
@@ -195,34 +195,34 @@ def display_completion(snapshot, elapsed, quality_score=None):
         elapsed: Total elapsed seconds
         quality_score: Optional quality score
     """
-    print(f"✅ Capture complete! ({elapsed}s total)")
-    print("")
-    print("📋 Snapshot Details:")
-    print(f"   ID: {snapshot['id']}")
-    print(f"   Timestamp: {snapshot['timestamp']}")
+    print(f"✅ Capture complete! ({elapsed}s total)", flush=True)
+    print("", flush=True)
+    print("📋 Snapshot Details:", flush=True)
+    print(f"   ID: {snapshot['id']}", flush=True)
+    print(f"   Timestamp: {snapshot['timestamp']}", flush=True)
 
     if snapshot['message_count']:
-        print(f"   Messages: {snapshot['message_count']}")
+        print(f"   Messages: {snapshot['message_count']}", flush=True)
 
     if snapshot['summary_len']:
         # Convert character count to approximate words (avg 5 chars/word)
         approx_words = snapshot['summary_len'] // 5
-        print(f"   Summary: {approx_words} words ({snapshot['summary_len']} chars)")
+        print(f"   Summary: {approx_words} words ({snapshot['summary_len']} chars)", flush=True)
 
     if snapshot['tag_count']:
-        print(f"   Tags: {snapshot['tag_count']} extracted")
+        print(f"   Tags: {snapshot['tag_count']} extracted", flush=True)
 
     if snapshot['file_count']:
-        print(f"   Files: {snapshot['file_count']} mentioned")
+        print(f"   Files: {snapshot['file_count']} mentioned", flush=True)
 
     if quality_score:
-        print(f"   Quality Score: {quality_score}/10")
+        print(f"   Quality Score: {quality_score}/10", flush=True)
 
-    print("")
-    print("✅ Safe to close Claude Code!")
-    print("")
-    print("To enhance this summary with Claude Sonnet:")
-    print(f"   /mem-enhance-summary {snapshot['id']}")
+    print("", flush=True)
+    print("✅ Safe to close Claude Code!", flush=True)
+    print("", flush=True)
+    print("To enhance this summary with Claude Sonnet:", flush=True)
+    print(f"   /mem-enhance-summary {snapshot['id']}", flush=True)
 
 
 def main():
@@ -284,13 +284,13 @@ Examples:
         return 1
 
     # Start monitoring
-    print("📊 Monitoring capture progress...")
+    print("📊 Monitoring capture progress...", flush=True)
     if args.session_id:
-        print(f"Session: {args.session_id}")
+        print(f"Session: {args.session_id}", flush=True)
     else:
-        print("Session: Latest capture")
-    print(f"Polling every {args.poll_interval}s, timeout {args.timeout}s")
-    print("")
+        print("Session: Latest capture", flush=True)
+    print(f"Polling every {args.poll_interval}s, timeout {args.timeout}s", flush=True)
+    print("", flush=True)
 
     start_time = time.time()
     last_snapshot_id = None
@@ -300,10 +300,10 @@ Examples:
 
         # Check timeout
         if elapsed > args.timeout:
-            print(f"⏱️  Timeout reached ({args.timeout}s)")
-            print("   Capture may still be processing")
-            print("   Check dashboard: http://localhost:3200/dashboard")
-            print("")
+            print(f"⏱️  Timeout reached ({args.timeout}s)", flush=True)
+            print("   Capture may still be processing", flush=True)
+            print("   Check dashboard: http://localhost:3200/dashboard", flush=True)
+            print("", flush=True)
             cur.close()
             conn.close()
             return 0
@@ -314,23 +314,23 @@ Examples:
         if not snapshot:
             if elapsed < 30:
                 # Give processor time to insert the snapshot
-                print(f"⏳ Waiting for capture to appear in database... ({elapsed}s)")
-                print("")
+                print(f"⏳ Waiting for capture to appear in database... ({elapsed}s)", flush=True)
+                print("", flush=True)
                 time.sleep(args.poll_interval)
                 continue
-            print("⚠️  No recent captures found")
-            print("   Run /mem-capture first")
+            print("⚠️  No recent captures found", flush=True)
+            print("   Run /mem-capture first", flush=True)
             if since_time:
-                print(f"   (Looking for captures after {since_time.isoformat()})")
-            print("")
+                print(f"   (Looking for captures after {since_time.isoformat()})", flush=True)
+            print("", flush=True)
             cur.close()
             conn.close()
             return 0
 
         # Track if we found a new snapshot
         if last_snapshot_id and snapshot['id'] != last_snapshot_id:
-            print(f"ℹ️  New capture detected (ID: {snapshot['id']})")
-            print("")
+            print(f"ℹ️  New capture detected (ID: {snapshot['id']})", flush=True)
+            print("", flush=True)
 
         last_snapshot_id = snapshot['id']
 

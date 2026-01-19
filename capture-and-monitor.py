@@ -87,12 +87,12 @@ def run_monitor(session_id=None, timeout=180, capture_start_time=None):
     Returns:
         bool: Success
     """
-    print("")
-    print("🔍 Step 2/2: Monitoring capture progress...")
-    print("=" * 60)
+    print("", flush=True)
+    print("🔍 Step 2/2: Monitoring capture progress...", flush=True)
+    print("=" * 60, flush=True)
 
     # Wait a moment for capture to register in processor
-    print("⏳ Waiting for capture to start processing...")
+    print("⏳ Waiting for capture to start processing...", flush=True)
     time.sleep(3)
 
     try:
@@ -151,19 +151,19 @@ This command is ideal for end-of-session workflows.
     args = parser.parse_args()
 
     # Print header
-    print("")
-    print("╔══════════════════════════════════════════════════════════════╗")
-    print("║         Capture and Monitor - Combined Workflow             ║")
-    print("╚══════════════════════════════════════════════════════════════╝")
-    print("")
+    print("", flush=True)
+    print("╔══════════════════════════════════════════════════════════════╗", flush=True)
+    print("║         Capture and Monitor - Combined Workflow             ║", flush=True)
+    print("╚══════════════════════════════════════════════════════════════╝", flush=True)
+    print("", flush=True)
 
     # Record start time BEFORE capture (to filter out old snapshots in monitor)
     capture_start_time = datetime.now().isoformat()
 
     # Show project being captured
     if args.project:
-        print(f"📂 Target project: {args.project}")
-        print("")
+        print(f"📂 Target project: {args.project}", flush=True)
+        print("", flush=True)
 
     # Step 1: Capture
     capture_success, session_id = run_capture(project_path=args.project)
@@ -177,15 +177,15 @@ This command is ideal for end-of-session workflows.
     monitor_success = run_monitor(session_id, args.timeout, capture_start_time)
 
     # Summary
-    print("")
-    print("=" * 60)
+    print("", flush=True)
+    print("=" * 60, flush=True)
     if monitor_success:
-        print("✅ Capture and monitoring complete!")
+        print("✅ Capture and monitoring complete!", flush=True)
     else:
-        print("⚠️  Capture succeeded, but monitoring timed out or failed")
-        print("   Check dashboard: http://localhost:3200/dashboard")
-    print("=" * 60)
-    print("")
+        print("⚠️  Capture succeeded, but monitoring timed out or failed", flush=True)
+        print("   Check dashboard: http://localhost:3200/dashboard", flush=True)
+    print("=" * 60, flush=True)
+    print("", flush=True)
 
     return 0 if monitor_success else 1
 

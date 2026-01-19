@@ -216,59 +216,59 @@ Examples:
 
     args = parser.parse_args()
 
-    print("🔍 Claude Memory - Auto-Capture Current Session")
-    print("=" * 60)
-    print()
+    print("🔍 Claude Memory - Auto-Capture Current Session", flush=True)
+    print("=" * 60, flush=True)
+    print(flush=True)
 
     try:
         # Step 1: Detect current session
-        print("📂 Detecting current session...")
+        print("📂 Detecting current session...", flush=True)
         if args.project:
-            print(f"   Using explicit project path: {args.project}")
+            print(f"   Using explicit project path: {args.project}", flush=True)
         session_info = detect_current_session(project_path=args.project)
 
-        print(f"✅ Found active session:")
-        print(f"   Session ID: {session_info['session_id']}")
-        print(f"   Project: {session_info['project_path']}")
-        print(f"   Transcript: {Path(session_info['transcript_path']).name}")
-        print(f"   File size: {session_info['file_size']:,} bytes")
-        print()
+        print(f"✅ Found active session:", flush=True)
+        print(f"   Session ID: {session_info['session_id']}", flush=True)
+        print(f"   Project: {session_info['project_path']}", flush=True)
+        print(f"   Transcript: {Path(session_info['transcript_path']).name}", flush=True)
+        print(f"   File size: {session_info['file_size']:,} bytes", flush=True)
+        print(flush=True)
 
         # Step 2: Read transcript
-        print("📖 Reading transcript...")
+        print("📖 Reading transcript...", flush=True)
         messages = read_transcript(session_info['transcript_path'])
-        print(f"✅ Loaded {len(messages)} raw transcript entries")
+        print(f"✅ Loaded {len(messages)} raw transcript entries", flush=True)
 
         # Step 2.5: Convert to OpenAI format
-        print("🔄 Converting to conversation format...")
+        print("🔄 Converting to conversation format...", flush=True)
         converted_messages = convert_to_openai_format(messages)
-        print(f"✅ Extracted {len(converted_messages)} conversation messages")
+        print(f"✅ Extracted {len(converted_messages)} conversation messages", flush=True)
 
         if len(converted_messages) == 0:
-            print("⚠️  Warning: No conversation messages found in transcript")
-            print("   This transcript may only contain system/metadata entries")
+            print("⚠️  Warning: No conversation messages found in transcript", flush=True)
+            print("   This transcript may only contain system/metadata entries", flush=True)
             sys.exit(1)
 
-        print()
+        print(flush=True)
 
         # Step 3: Capture to database
-        print("🚀 Sending to claude-memory processor...")
+        print("🚀 Sending to claude-memory processor...", flush=True)
         result = capture_session(session_info, messages)
 
-        print(f"✅ {result['message']}")
-        print()
-        print("📊 Capture Summary:")
-        print(f"   Status: {result['status']}")
-        print(f"   Project: {result['project_path']}")
-        print(f"   Trigger: {result['trigger']}")
-        print(f"   Messages captured: {len(converted_messages)}")
-        print(f"   Raw transcript entries: {len(messages)}")
-        print()
-        print("⏳ Processing in background (summary + embeddings)...")
-        print("   Check dashboard: http://localhost:3200/dashboard")
-        print("   Or terminal: npm run monitor")
-        print()
-        print("✨ Done!")
+        print(f"✅ {result['message']}", flush=True)
+        print(flush=True)
+        print("📊 Capture Summary:", flush=True)
+        print(f"   Status: {result['status']}", flush=True)
+        print(f"   Project: {result['project_path']}", flush=True)
+        print(f"   Trigger: {result['trigger']}", flush=True)
+        print(f"   Messages captured: {len(converted_messages)}", flush=True)
+        print(f"   Raw transcript entries: {len(messages)}", flush=True)
+        print(flush=True)
+        print("⏳ Processing in background (summary + embeddings)...", flush=True)
+        print("   Check dashboard: http://localhost:3200/dashboard", flush=True)
+        print("   Or terminal: npm run monitor", flush=True)
+        print(flush=True)
+        print("✨ Done!", flush=True)
 
     except FileNotFoundError as e:
         print(f"❌ Error: {e}", file=sys.stderr)
