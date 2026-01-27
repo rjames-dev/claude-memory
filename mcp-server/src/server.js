@@ -16,7 +16,7 @@ import axios from 'axios';
 
 const { Pool} = pg;
 
-// PostgreSQL connection
+// PostgreSQL connection - claude_memory database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 10,
@@ -26,6 +26,22 @@ const pool = new Pool({
 
 pool.on('error', (err) => {
   console.error('Unexpected database error:', err);
+});
+
+// PostgreSQL connection - claude_knowledge database (for best practices KB)
+const knowledgePool = new Pool({
+  host: process.env.POSTGRES_HOST || 'localhost',
+  port: parseInt(process.env.POSTGRES_HOST_PORT || '5435'),
+  database: 'claude_knowledge',
+  user: process.env.POSTGRES_USER || 'memory_admin',
+  password: process.env.CONTEXT_DB_PASSWORD,
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000
+});
+
+knowledgePool.on('error', (err) => {
+  console.error('Knowledge database error:', err);
 });
 
 /**
@@ -1166,6 +1182,204 @@ Showing evolution across ${configs.length} version(s)
   return `${header}\n\n${configList}`;
 }
 
+// ============================================================================
+// KNOWLEDGE BASE SEARCH - Best Practices Integration
+// ============================================================================
+
+/**
+ * Search the knowledge base for programming best practices
+ * Supports semantic (vector), fulltext (tsvector), and fuzzy (trigram) search
+ */
+async function searchKnowledge(query, category = null, searchMode = 'hybrid', limit = 5) {
+  const client = await knowledgePool.connect();
+
+  try {
+    let results = [];
+
+    // Semantic search using vector embeddings
+    if (searchMode === 'semantic' || searchMode === 'hybrid') {
+      try {
+        const processorUrl = process.env.PROCESSOR_URL || 'http://context-processor:3200';
+        const embeddingResponse = await axios.post(
+          `${processorUrl}/embed`,
+          { text: query },
+          { timeout: 10000 }
+        );
+
+        if (embeddingResponse.data.status === 'success') {
+          const queryEmbedding = embeddingResponse.data.embedding;
+
+          const semanticSql = `
+            SELECT id, category, title, content,
+                   key_concepts, actionable_insights, code_examples,
+                   (embedding <=> $1::vector) as distance
+            FROM topics
+            WHERE embedding IS NOT NULL
+              ${category ? 'AND category = $2' : ''}
+            ORDER BY embedding <=> $1::vector
+            LIMIT $${category ? '3' : '2'}
+          `;
+
+          const semanticParams = category
+            ? [JSON.stringify(queryEmbedding), category, limit]
+            : [JSON.stringify(queryEmbedding), limit];
+
+          const semantic = await client.query(semanticSql, semanticParams);
+          results.push(...semantic.rows.map(r => ({
+            ...r,
+            match_type: 'semantic',
+            relevance_score: 1 - r.distance // Convert distance to similarity
+          })));
+        }
+      } catch (error) {
+        console.error('Semantic search failed, continuing with other modes:', error.message);
+      }
+    }
+
+    // Full-text search using tsvector
+    if (searchMode === 'fulltext' || searchMode === 'hybrid') {
+      const ftsSql = `
+        SELECT id, category, title, content,
+               key_concepts, actionable_insights, code_examples,
+               ts_rank(to_tsvector('english', content), plainto_tsquery('english', $1)) as rank
+        FROM topics
+        WHERE to_tsvector('english', content) @@ plainto_tsquery('english', $1)
+          ${category ? 'AND category = $2' : ''}
+        ORDER BY rank DESC
+        LIMIT $${category ? '3' : '2'}
+      `;
+
+      const ftsParams = category ? [query, category, limit] : [query, limit];
+      const fulltext = await client.query(ftsSql, ftsParams);
+      results.push(...fulltext.rows.map(r => ({
+        ...r,
+        match_type: 'fulltext',
+        relevance_score: r.rank
+      })));
+    }
+
+    // Fuzzy search using trigram on key_concepts
+    if (searchMode === 'fuzzy' || searchMode === 'hybrid') {
+      const fuzzySql = `
+        SELECT id, category, title, content,
+               key_concepts, actionable_insights, code_examples,
+               similarity(array_to_text_immutable(key_concepts), $1) as sim
+        FROM topics
+        WHERE array_to_text_immutable(key_concepts) % $1
+          ${category ? 'AND category = $2' : ''}
+        ORDER BY sim DESC
+        LIMIT $${category ? '3' : '2'}
+      `;
+
+      const fuzzyParams = category ? [query, category, limit] : [query, limit];
+
+      try {
+        const fuzzyResults = await client.query(fuzzySql, fuzzyParams);
+        results.push(...fuzzyResults.rows.map(r => ({
+          ...r,
+          match_type: 'fuzzy',
+          relevance_score: r.sim
+        })));
+      } catch (error) {
+        // Fuzzy search might fail if function doesn't exist
+        console.error('Fuzzy search failed:', error.message);
+      }
+    }
+
+    // Deduplicate results by id, keeping highest relevance score
+    const deduped = {};
+    for (const result of results) {
+      if (!deduped[result.id] || result.relevance_score > deduped[result.id].relevance_score) {
+        deduped[result.id] = result;
+      }
+    }
+
+    // Sort by relevance and limit
+    return Object.values(deduped)
+      .sort((a, b) => b.relevance_score - a.relevance_score)
+      .slice(0, limit);
+
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Get available categories in the knowledge base
+ */
+async function getKnowledgeCategories() {
+  const client = await knowledgePool.connect();
+
+  try {
+    const result = await client.query(`
+      SELECT category, COUNT(*) as topic_count
+      FROM topics
+      GROUP BY category
+      ORDER BY topic_count DESC
+    `);
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Format knowledge search results for display
+ */
+function formatKnowledgeResults(results, query) {
+  if (results.length === 0) {
+    return `No knowledge base entries found matching: "${query}"
+
+Try:
+- Broader search terms
+- Different category
+- Use 'hybrid' search mode for best coverage`;
+  }
+
+  let output = `# 📚 Knowledge Base Results\n\n`;
+  output += `Query: "${query}"\n`;
+  output += `Found ${results.length} relevant topic(s)\n\n`;
+  output += `---\n\n`;
+
+  for (const topic of results) {
+    output += `## ${topic.category} > ${topic.title}\n`;
+    output += `*Match: ${topic.match_type} (score: ${topic.relevance_score?.toFixed(3) || 'N/A'})*\n\n`;
+
+    // Show key concepts
+    if (topic.key_concepts?.length > 0) {
+      output += `**Key Concepts:** ${topic.key_concepts.slice(0, 5).join(', ')}\n\n`;
+    }
+
+    // Show actionable insights (main value for code review)
+    if (topic.actionable_insights?.length > 0) {
+      output += `**Actionable Insights:**\n`;
+      topic.actionable_insights.slice(0, 5).forEach(insight => {
+        output += `- ${insight}\n`;
+      });
+      output += `\n`;
+    }
+
+    // Show code examples if available
+    if (topic.code_examples?.length > 0) {
+      const example = topic.code_examples[0];
+      if (example.code) {
+        output += `**Code Example:**\n`;
+        output += `\`\`\`${example.language || ''}\n${example.code.substring(0, 500)}${example.code.length > 500 ? '\n// ... (truncated)' : ''}\n\`\`\`\n\n`;
+      }
+    }
+
+    // Show content preview
+    if (topic.content) {
+      const preview = topic.content.substring(0, 300);
+      output += `**Summary:** ${preview}${topic.content.length > 300 ? '...' : ''}\n\n`;
+    }
+
+    output += `---\n\n`;
+  }
+
+  return output;
+}
+
 // Create MCP server
 const server = new Server(
   {
@@ -1465,6 +1679,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'number',
               default: 5,
               description: 'Maximum number of snapshots to return (default: 5)',
+            },
+          },
+          required: ['query'],
+        },
+      },
+      {
+        name: 'search_knowledge',
+        description: 'Search programming best practices and theory from the knowledge base. Use during code reviews to find relevant patterns, anti-patterns, security guidelines, and architectural recommendations. The knowledge base contains curated content on APIs, caching, security, system design, and more.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search query - concept, pattern, or question (e.g., "connection pooling best practices", "SQL injection prevention", "error handling patterns")',
+            },
+            category: {
+              type: 'string',
+              description: 'Optional: Filter by category (e.g., "Security", "System Design", "APIs & Integration", "Caching & Performance")',
+            },
+            search_mode: {
+              type: 'string',
+              enum: ['semantic', 'fulltext', 'fuzzy', 'hybrid'],
+              default: 'hybrid',
+              description: 'Search strategy: semantic (vector similarity), fulltext (tsvector word matching), fuzzy (trigram for typos), or hybrid (all methods combined - recommended)',
+            },
+            limit: {
+              type: 'number',
+              default: 5,
+              description: 'Maximum number of results (default: 5)',
             },
           },
           required: ['query'],
@@ -1841,6 +2084,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case 'search_knowledge': {
+        if (!args.query) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'Error: query parameter is required',
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const knowledgeResults = await searchKnowledge(
+          args.query,
+          args.category || null,
+          args.search_mode || 'hybrid',
+          args.limit || 5
+        );
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: formatKnowledgeResults(knowledgeResults, args.query),
+            },
+          ],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1865,12 +2138,13 @@ async function main() {
   console.error('========================================');
   console.error('🧠 Claude Memory MCP Server');
   console.error('========================================');
-  console.error('📍 Database:', process.env.DATABASE_URL?.replace(/:[^:]*@/, ':****@'));
+  console.error('📍 Memory DB:', process.env.DATABASE_URL?.replace(/:[^:]*@/, ':****@'));
+  console.error('📚 Knowledge DB: claude_knowledge');
   console.error('');
-  console.error('🔧 Available Tools (13):');
+  console.error('🔧 Available Tools (14):');
   console.error('   Core Tools:');
   console.error('   - search_memory (semantic similarity)');
-  console.error('   - search_raw_messages (full message content - Phase 8)');
+  console.error('   - search_raw_messages (full message content)');
   console.error('   - get_timeline (chronological view)');
   console.error('   - get_snapshot (detailed snapshot)');
   console.error('');
@@ -1882,10 +2156,13 @@ async function main() {
   console.error('   - analyze_bugs (bug patterns)');
   console.error('   - get_file_activity (file heatmap)');
   console.error('');
-  console.error('   Agent Memory Tools (Phase 5):');
+  console.error('   Agent Memory Tools:');
   console.error('   - search_agent_work (find agent activities)');
   console.error('   - get_agent_analytics (agent performance)');
   console.error('   - compare_agent_configs (config comparison)');
+  console.error('');
+  console.error('   Knowledge Base Tools:');
+  console.error('   - search_knowledge (best practices for code review)');
   console.error('========================================');
   console.error('✅ Ready for requests');
   console.error('========================================');
