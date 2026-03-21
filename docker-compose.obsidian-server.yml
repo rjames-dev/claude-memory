@@ -1,0 +1,61 @@
+# docker-compose.obsidian-server.yml
+# Headless Ubuntu server overlay — adds Obsidian web UI, adjusts conflicting ports
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.obsidian-server.yml up -d
+#   docker-compose -f docker-compose.yml -f docker-compose.obsidian-server.yml down
+#
+# What this overrides vs base docker-compose.yml:
+#   - Ollama host port: 11434 → 11435  (11434 taken by host Ollama install)
+#   - Adds: linuxserver/obsidian on port 3010 (3000 taken)
+#
+# Access from Mac (direct, LAN):
+#   Obsidian:              http://<server-ip>:3010
+#   claude-memory main:    http://<server-ip>:3200/dashboard
+#   claude-memory detail:  http://<server-ip>:3200/dashboard-detail.html
+#
+# Port map (this server):
+#   3200  — Context Processor API + dashboards
+#   5435  — PostgreSQL + pgvector
+#   11435 — Ollama (claude-memory instance; internal Docker port still 11434)
+#   3010  — Obsidian web UI (KasmVNC via linuxserver/obsidian)
+# ============================================================================
+
+services:
+
+  # Override Ollama host port only — internal port stays 11434
+  # Processor still reaches it via http://ollama:11434 on Docker network (unchanged)
+  ollama:
+    ports:
+      - "11435:11434"
+
+  # Obsidian — full desktop Obsidian app served in browser via KasmVNC
+  # First launch: in the browser UI, open vault → navigate to /config/vault
+  obsidian:
+    image: lscr.io/linuxserver/obsidian:latest
+    container_name: claude-obsidian
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-America/Los_Angeles}
+    volumes:
+      # Vault content — shared with host filesystem
+      # promote-to-obsidian.py writes here; Obsidian reads and displays it
+      - ${CLAUDE_WORKSPACE_ROOT}/vault:/config/vault
+      # Obsidian app config (plugins, theme, hotkeys) — persisted across restarts
+      - claude-memory-obsidian-config:/config
+    ports:
+      - "3010:3000"
+    restart: unless-stopped
+    networks:
+      - claude-memory-network
+
+volumes:
+  claude-memory-obsidian-config:
+    name: claude-memory-obsidian-config
+
+networks:
+  claude-memory-network:
+    external: true
