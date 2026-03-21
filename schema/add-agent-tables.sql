@@ -205,18 +205,20 @@ COMMENT ON VIEW v_agent_work_full IS 'Complete agent work view with definition a
 
 
 -- View 4: Tool usage heatmap (which tools are used most by agents)
+-- Note: uses LATERAL jsonb_each_text — jsonb_object_keys cannot be used inside aggregates
 CREATE VIEW v_agent_tool_usage AS
 SELECT
     ad.agent_type,
     ad.model_used,
-    jsonb_object_keys(aw.tools_used) as tool_name,
-    SUM((aw.tools_used->>jsonb_object_keys(aw.tools_used))::int) as total_uses,
-    COUNT(DISTINCT aw.id) as sessions_used_in,
-    AVG(aw.duration_seconds)::numeric(10,1) as avg_duration_when_used
+    tool.key AS tool_name,
+    SUM(tool.value::int) AS total_uses,
+    COUNT(DISTINCT aw.id) AS sessions_used_in,
+    AVG(aw.duration_seconds)::numeric(10,1) AS avg_duration_when_used
 FROM agent_work aw
 JOIN agent_definitions ad ON ad.id = aw.agent_definition_id
+CROSS JOIN LATERAL jsonb_each_text(aw.tools_used) AS tool(key, value)
 WHERE aw.tools_used IS NOT NULL
-GROUP BY ad.agent_type, ad.model_used, tool_name
+GROUP BY ad.agent_type, ad.model_used, tool.key
 ORDER BY total_uses DESC;
 
 COMMENT ON VIEW v_agent_tool_usage IS 'Tool usage statistics. Shows which tools are most popular and their impact on duration.';
