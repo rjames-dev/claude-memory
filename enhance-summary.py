@@ -20,7 +20,7 @@ Requirements:
     - Docker containers running (claude-context-processor, claude-context-db)
 
 Cost:
-    ~$0.15-0.25 per enhanced summary (Claude Sonnet 4.5 API)
+    ~$0.15-0.25 per enhanced summary (Claude Sonnet 4.6 API)
 
 Example:
     # Enhance a poor-quality summary from before Phase 6C
@@ -247,7 +247,7 @@ Generate the detailed summary now:"""
 
     # Call Claude API
     message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-6",
         max_tokens=4096,  # ~3000 words
         messages=[{
             "role": "user",
@@ -390,7 +390,7 @@ def main():
 
     # Step 2: Generate enhanced summary
     print(f"🤖 [2/4] Generating enhanced summary via Claude API...")
-    print(f"   Model: claude-sonnet-4-5")
+    print(f"   Model: claude-sonnet-4-6")
     print(f"   Estimated cost: ~$0.15-0.25")
     print()
 
