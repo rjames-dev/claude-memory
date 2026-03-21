@@ -2,8 +2,15 @@
 
 # Claude Memory - Automatic Capture Hooks Setup
 # Installs PreCompact hooks for automatic conversation capture
+# Also provisions the Obsidian vault if not already present
 
 set -e
+
+# ---------------------------------------------------------------------------
+# Vault template repo — cloned on first install if vault doesn't exist
+# Update this URL after publishing the template to GitHub
+# ---------------------------------------------------------------------------
+VAULT_TEMPLATE_REPO="git@github.com:rjames-dev/obsidian-vault-template.git"
 
 echo "🪝 Claude Memory - Automatic Capture Hooks Setup"
 echo "================================================="
@@ -15,6 +22,56 @@ CLAUDE_MEMORY_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo "📍 Claude Memory location: $CLAUDE_MEMORY_DIR"
 echo ""
+
+# ---------------------------------------------------------------------------
+# Provision Obsidian vault
+# vault_root = CLAUDE_WORKSPACE_ROOT/vault (convention, not config)
+# ---------------------------------------------------------------------------
+
+# Read CLAUDE_WORKSPACE_ROOT from .env if not in environment
+if [ -z "$CLAUDE_WORKSPACE_ROOT" ] && [ -f "$CLAUDE_MEMORY_DIR/.env" ]; then
+    CLAUDE_WORKSPACE_ROOT=$(grep "^CLAUDE_WORKSPACE_ROOT=" "$CLAUDE_MEMORY_DIR/.env" | cut -d= -f2 | tr -d '"' | tr -d "'")
+fi
+
+if [ -n "$CLAUDE_WORKSPACE_ROOT" ]; then
+    VAULT_ROOT="$CLAUDE_WORKSPACE_ROOT/vault"
+
+    if [ -d "$VAULT_ROOT" ]; then
+        echo "✅ Obsidian vault already exists at $VAULT_ROOT"
+        echo ""
+    else
+        echo "📓 Obsidian vault not found — cloning template..."
+        echo "   Destination: $VAULT_ROOT"
+        echo ""
+
+        if git clone "$VAULT_TEMPLATE_REPO" "$VAULT_ROOT" 2>&1; then
+            # Remove template's git history so user starts fresh
+            rm -rf "$VAULT_ROOT/.git"
+            echo ""
+            echo "✅ Vault template cloned to $VAULT_ROOT"
+            echo "   Git history cleared — this is now your private vault."
+            echo ""
+            echo "   Next: open Obsidian → 'Open folder as vault' → select:"
+            echo "   $VAULT_ROOT"
+            echo ""
+        else
+            echo "⚠️  Could not clone vault template (no internet or invalid URL)"
+            echo "   Creating minimal vault structure instead..."
+            mkdir -p "$VAULT_ROOT"/{Calendar,Events,Research,Projects}
+            mkdir -p "$VAULT_ROOT"/Claude/{Session-Logs,Knowledge-Base,Scratch}
+            # Copy CLAUDE.md from claude-memory if it exists
+            if [ -f "$CLAUDE_MEMORY_DIR/vault-template/CLAUDE.md" ]; then
+                cp "$CLAUDE_MEMORY_DIR/vault-template/CLAUDE.md" "$VAULT_ROOT/CLAUDE.md"
+            fi
+            echo "✅ Minimal vault structure created at $VAULT_ROOT"
+            echo ""
+        fi
+    fi
+else
+    echo "⚠️  CLAUDE_WORKSPACE_ROOT not set — skipping vault setup"
+    echo "   Run scripts/setup-env.sh first, then re-run this script."
+    echo ""
+fi
 
 # Detect OS and set Claude config path
 if [[ "$OSTYPE" == "darwin"* ]]; then

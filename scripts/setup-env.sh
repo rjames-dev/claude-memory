@@ -101,6 +101,99 @@ if grep -q "^CONTEXT_DB_PASSWORD=your_secure_password_here" "$PROJECT_ROOT/.env"
 fi
 
 echo ""
+
+# ---------------------------------------------------------------------------
+# Anthropic API Key (required for enhance-summary and promote-to-obsidian)
+# ---------------------------------------------------------------------------
+
+EXISTING_API_KEY=""
+
+# Check environment first
+if [ -n "$ANTHROPIC_API_KEY" ]; then
+    EXISTING_API_KEY="$ANTHROPIC_API_KEY"
+fi
+
+# Check .env file
+if [ -z "$EXISTING_API_KEY" ] && grep -q "^ANTHROPIC_API_KEY=sk-ant-" "$PROJECT_ROOT/.env" 2>/dev/null; then
+    EXISTING_API_KEY=$(grep "^ANTHROPIC_API_KEY=" "$PROJECT_ROOT/.env" | cut -d= -f2)
+fi
+
+if [ -n "$EXISTING_API_KEY" ]; then
+    echo -e "${GREEN}✅ ANTHROPIC_API_KEY already configured${NC}"
+    echo "   Key: ${EXISTING_API_KEY:0:20}..."
+    echo ""
+else
+    echo -e "${BLUE}── Anthropic API Key ───────────────────────────────────────${NC}"
+    echo ""
+    echo "An Anthropic API key is required for:"
+    echo "  • enhance-summary.py  — deep session summarization"
+    echo "  • promote-to-obsidian.py — writing insights to Obsidian"
+    echo ""
+    echo "Get your key at: https://console.anthropic.com/settings/keys"
+    echo ""
+    read -p "Enter your Anthropic API key (or press Enter to skip): " -r API_KEY
+    echo ""
+
+    if [ -z "$API_KEY" ]; then
+        echo -e "${YELLOW}⚠️  Skipped — enhance-summary and promote-to-obsidian will not work${NC}"
+        echo "   Add ANTHROPIC_API_KEY to .env when ready."
+        echo ""
+    else
+        # Validate the key with a minimal API call
+        echo "🔄 Validating API key..."
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            https://api.anthropic.com/v1/models \
+            -H "x-api-key: $API_KEY" \
+            -H "anthropic-version: 2023-06-01")
+
+        if [ "$HTTP_STATUS" = "200" ]; then
+            echo -e "${GREEN}✅ API key validated successfully${NC}"
+
+            # Save to .env
+            if grep -q "^ANTHROPIC_API_KEY=" "$PROJECT_ROOT/.env" 2>/dev/null; then
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    sed -i '' "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=$API_KEY|" "$PROJECT_ROOT/.env"
+                else
+                    sed -i "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=$API_KEY|" "$PROJECT_ROOT/.env"
+                fi
+            else
+                echo "ANTHROPIC_API_KEY=$API_KEY" >> "$PROJECT_ROOT/.env"
+            fi
+            echo -e "${GREEN}✅ Saved to .env${NC}"
+        elif [ "$HTTP_STATUS" = "401" ]; then
+            echo -e "${RED}❌ Invalid API key (HTTP 401)${NC}"
+            echo "   Check your key at: https://console.anthropic.com/settings/keys"
+            echo "   Add manually to .env: ANTHROPIC_API_KEY=sk-ant-..."
+        elif [ "$HTTP_STATUS" = "000" ]; then
+            echo -e "${YELLOW}⚠️  Could not reach Anthropic API (no internet?)${NC}"
+            echo "   Saving key without validation..."
+            if grep -q "^ANTHROPIC_API_KEY=" "$PROJECT_ROOT/.env" 2>/dev/null; then
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    sed -i '' "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=$API_KEY|" "$PROJECT_ROOT/.env"
+                else
+                    sed -i "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=$API_KEY|" "$PROJECT_ROOT/.env"
+                fi
+            else
+                echo "ANTHROPIC_API_KEY=$API_KEY" >> "$PROJECT_ROOT/.env"
+            fi
+            echo -e "${GREEN}✅ Saved to .env (unvalidated)${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Unexpected response (HTTP $HTTP_STATUS) — saving key anyway${NC}"
+            if grep -q "^ANTHROPIC_API_KEY=" "$PROJECT_ROOT/.env" 2>/dev/null; then
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    sed -i '' "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=$API_KEY|" "$PROJECT_ROOT/.env"
+                else
+                    sed -i "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=$API_KEY|" "$PROJECT_ROOT/.env"
+                fi
+            else
+                echo "ANTHROPIC_API_KEY=$API_KEY" >> "$PROJECT_ROOT/.env"
+            fi
+            echo -e "${GREEN}✅ Saved to .env${NC}"
+        fi
+        echo ""
+    fi
+fi
+
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║              Environment Setup Complete!                  ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
