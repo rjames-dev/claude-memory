@@ -1,14 +1,37 @@
 # Claude Memory System
 
-**Persistent context memory for Claude Code with semantic search, embeddings, and auto-capture**
+**Persistent context memory for Claude Code — with Obsidian integration, semantic search, and auto-capture**
 
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
 [![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Node.js](https://img.shields.io/badge/node.js-6DA55F?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
 
-> **🚀 New User? Start with our 3-step Quick Start!**
->
-> Run `./start.sh` to validate your setup, then follow 3 simple commands for a working system in 5-10 minutes. See [Quick Start](#quick-start) below.
+---
+
+## Just Want to Get Started?
+
+Four commands. Ten minutes. Everything running.
+
+```bash
+# 1. Clone and enter the project
+git clone https://github.com/rjames-dev/claude-memory.git
+cd claude-memory
+
+# 2. Configure environment — workspace path, DB password, Anthropic API key
+./scripts/setup-env.sh
+
+# 3. Start Docker services
+docker-compose up -d
+
+# 4. Install hooks + provision Obsidian vault
+./hooks/setup-hooks.sh
+```
+
+Then open **Obsidian** → *Open folder as vault* → select `~/code/vault`.
+
+That's it. Sessions are captured automatically. Run `promote-to-obsidian.py <snapshot_id>` after significant sessions to push insights into your vault.
+
+> Need more control or want to understand what's happening? Keep reading.
 
 ---
 
@@ -24,7 +47,8 @@ Claude Memory System solves the **context loss problem** in Claude Code by autom
 ✅ **Agent Work Tracking** - Captures agent/subprocess tasks and links to parent sessions
 ✅ **MCP Tools Integration** - Claude can search your history automatically
 ✅ **Rich Metadata Extraction** - Tags, files, decisions, bugs, Git state
-✅ **Two-Tier AI Summaries** - Free Ollama summaries + Premium Claude enhancements
+✅ **Two-Tier AI Summaries** - Free Ollama summaries + Claude Sonnet deep enhancements
+✅ **Obsidian Integration** - Promote session insights into a living Obsidian knowledge base
 ✅ **Vector Embeddings** - sentence-transformers generates 384-dim embeddings
 ✅ **Project Timeline** - Chronological view of all work sessions
 ✅ **Portable Configuration** - Environment-based setup, works on any system
@@ -286,32 +310,23 @@ The Skills System is designed for speed:
 
 ### Step 0: Configure Environment
 
-**First-time setup** - Create and configure your `.env` file:
+Run the interactive setup script — it handles everything and validates as it goes:
 
 ```bash
-# Copy the environment template
-cp .env.example .env
-
-# Edit .env and set these REQUIRED values:
-# 1. CONTEXT_DB_PASSWORD - Generate with: openssl rand -base64 32
-# 2. CLAUDE_WORKSPACE_ROOT - Your workspace directory (e.g., /Users/yourname/workspace)
-
-# Optional:
-# 3. ANTHROPIC_API_KEY - For /mem-enhance-summary feature (premium detailed summaries)
+./scripts/setup-env.sh
 ```
 
-**Quick setup example:**
-```bash
-# macOS/Linux - one-liner to set password
-echo "CONTEXT_DB_PASSWORD=$(openssl rand -base64 32)" >> .env
+**What it configures:**
 
-# Then edit .env to set CLAUDE_WORKSPACE_ROOT to your workspace path
-```
+| Setting | Required | Description |
+|---|---|---|
+| `CLAUDE_WORKSPACE_ROOT` | ✅ Yes | Parent directory of your projects (e.g. `/Users/yourname/code`) |
+| `CONTEXT_DB_PASSWORD` | ✅ Yes | PostgreSQL password — auto-generated securely |
+| `ANTHROPIC_API_KEY` | ✅ Yes | Required for `enhance-summary` and `promote-to-obsidian`. Get yours at [console.anthropic.com](https://console.anthropic.com/settings/keys) |
 
-**What these settings do:**
-- **CONTEXT_DB_PASSWORD**: Secures your PostgreSQL database
-- **CLAUDE_WORKSPACE_ROOT**: Where Claude Code runs (all projects under this path get memory)
-- **ANTHROPIC_API_KEY**: Optional - enables detailed 1500-3000 word summaries (~$0.15-0.25 each)
+The script prompts for each value, validates the API key against the Anthropic API, and saves everything to `.env`.
+
+> **Manual setup:** If you prefer, copy `.env.example` to `.env` and edit directly. The script is just a guided wrapper.
 
 ---
 
@@ -399,14 +414,14 @@ docker-compose up -d
 ```markdown
 □ Prerequisites verified (Docker, Python 3, Node.js if using MCP)
 □ Cloned repository to permanent location
-□ Configured .env (CLAUDE_WORKSPACE_ROOT + password)
+□ Ran scripts/setup-env.sh (workspace root + DB password + Anthropic API key)
 □ Started Docker containers (docker-compose up -d)
 □ Installed Python dependencies (pip3 install -r requirements.txt)
+□ Ran hooks/setup-hooks.sh (auto-capture hooks + Obsidian vault cloned)
+□ Opened Obsidian → pointed at $CLAUDE_WORKSPACE_ROOT/vault
 □ Initialize Skills System (./scripts/import-and-initialize-skills.sh)
 □ Install slash commands (./scripts/install-commands.sh)
-□ Configure auto-capture hooks (REQUIRED for automatic capture feature)
-□ (Optional) Configure enhanced summaries (API key + requirements-enhance.txt)
-□ (Optional) Set up MCP search tools
+□ (Optional) Set up MCP search tools (see MCP-SETUP.md)
 ```
 
 ### 1. Clone Repository
@@ -532,27 +547,27 @@ pip3 install -r requirements.txt
 
 **Note:** This is separate from the Docker containers (which don't need this). This is only for the hook scripts that run on your host machine.
 
-### 6. Set Up Automatic Capture (Required for Key Feature)
+### 6. Set Up Automatic Capture + Obsidian Vault
 
-**⚠️ IMPORTANT:** The "Automatic Capture" feature (highlighted in the features list above) requires configuring hooks. Without this step, captures will only work via manual API calls.
+**⚠️ IMPORTANT:** The "Automatic Capture" feature requires configuring hooks. Without this step, captures will only work via manual API calls.
 
-#### Quick Hook Setup (2 minutes)
+#### Quick Setup (2 minutes)
 
 ```bash
-cd hooks
-./setup-hooks.sh
+./hooks/setup-hooks.sh
 ```
 
 This script will:
 - ✅ Detect your OS and Claude Code config location
 - ✅ Check if processor is running
-- ✅ Backup existing settings
-- ✅ Configure PreCompact hook in `~/.claude/settings.json`
+- ✅ Backup existing `~/.claude/settings.json` and merge hooks
+- ✅ Configure PreCompact hook for automatic session capture
+- ✅ **Clone the Obsidian vault template** to `$CLAUDE_WORKSPACE_ROOT/vault` (if not already present)
 
 **After setup:**
-- Work normally in Claude Code
-- When context fills up (~90%), conversations automatically save to memory
-- Zero manual effort required!
+- Work normally in Claude Code — sessions are captured automatically when context compacts
+- Open **Obsidian** → *Open folder as vault* → select `$CLAUDE_WORKSPACE_ROOT/vault`
+- Run `python3 promote-to-obsidian.py <snapshot_id>` after significant sessions to write insights to your vault
 
 **Detailed instructions:** See [hooks/README.md](./hooks/README.md)
 
@@ -576,32 +591,59 @@ nano ~/.claude/commands/mem-enhance-summary.md
 # Example: python3 /Users/yourname/code/claude-memory/enhance-summary.py "$@"
 ```
 
-**For enhanced summaries (optional premium feature):**
+**For enhanced summaries and Obsidian promotion:**
 
-If you want to use the `/mem-enhance-summary` command:
+If you configured `ANTHROPIC_API_KEY` in Step 0 (recommended), these are already available:
 
-1. **Install dependencies:**
-   ```bash
-   pip install -r requirements-enhance.txt
-   ```
+```bash
+# Deep-enhance a session summary (1500-3000 words, Claude Sonnet)
+python3 enhance-summary.py <snapshot_id>
 
-2. **Get Anthropic API key:**
-   - Visit: https://console.anthropic.com/
-   - Generate an API key
+# Promote session insights to Obsidian vault
+python3 promote-to-obsidian.py <snapshot_id>
+```
 
-3. **Add to .env:**
-   ```bash
-   echo "ANTHROPIC_API_KEY='sk-ant-your-key-here'" >> .env
-   ```
+Install the slash command for quick access:
+```bash
+pip install -r requirements-enhance.txt
+cp .claude/commands/mem-enhance-summary.md ~/.claude/commands/
+# Edit the installed file and set the correct path to enhance-summary.py
+```
 
-**After restart, you'll have:**
-- `/mem-enhance-summary <id>` - Generate detailed summaries using Claude Sonnet 4.5 (~$0.15-0.25 each)
-
-**Note:** This is an optional premium feature. Standard Ollama summaries (free, offline) work without this setup.
+**Cost:** ~$0.15-0.25 per enhanced summary (Claude Sonnet 4.6). Ollama summaries remain free and offline.
 
 ---
 
-### 8. Optional Integrations
+### 8. Obsidian Integration
+
+claude-memory pairs with Obsidian to give you a two-tier memory system:
+
+- **claude-memory** — deep automatic archive (every session, semantic search, embeddings)
+- **Obsidian vault** — human-readable narrative layer (decisions, learnings, project status)
+
+The vault is provisioned automatically by `setup-hooks.sh`. After significant sessions, run:
+
+```bash
+python3 promote-to-obsidian.py <snapshot_id>
+```
+
+**What gets written:**
+
+| File | When |
+|---|---|
+| `Claude/Session-Logs/YYYY-MM-DD.md` | Always — narrative summary of the session |
+| `Projects/<name>/Decisions Log.md` | When architectural decisions were made |
+| `Claude/Knowledge-Base/Learnings Log.md` | When bugs were fixed or patterns detected |
+
+**Project mapping** is stored in the `project_registry` DB table — projects are auto-registered on first capture and auto-linked to their Obsidian folder on first promotion.
+
+**Web dashboards** (once Docker is running):
+- `http://localhost:3200/dashboard` — system status and recent captures
+- `http://localhost:3200/dashboard-detail.html` — full analytics (quality, projects, bugs, files, decisions, agents)
+
+---
+
+### 9. Optional Integrations
 
 You can enhance claude-memory with these additional integrations:
 
