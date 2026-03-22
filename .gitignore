@@ -50,3 +50,9 @@ __pycache__/
 Thumbs.db
 # Local Claude Code settings
 .claude/settings.local.json
+
+# TLS certificates (machine-specific, never commit private keys)
+certs/
+
+# Nginx config (machine-specific, generated during setup)
+nginx/

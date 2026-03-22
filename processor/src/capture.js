@@ -9,12 +9,14 @@ const { extractMetadata } = require('./metadata');
 const { summarize } = require('./summarize');
 const { generateEmbedding } = require('./embed');
 const { storeSnapshot } = require('./storage');
+const { runSummaryAgent } = require('./summary-agent');
 
 /**
  * Main capture function - orchestrates the entire pipeline
  * IMPORTANT: This runs out-of-band and consumes ZERO tokens from main Claude session
  */
-async function captureContext({ project_path, trigger, conversation_data, session_id, transcript_path }) {
+async function captureContext({ project_path, trigger, conversation_data, session_id, transcript_path,
+                               message_start_index = 0, compaction_index = 1 }) {
   const startTime = Date.now();
 
   console.log(`\n=== Starting Context Capture ===`);
@@ -50,7 +52,9 @@ async function captureContext({ project_path, trigger, conversation_data, sessio
     const summaryContext = {
       project_path,
       session_id,
-      trigger
+      trigger,
+      message_start_index,
+      compaction_index
     };
     const summary = await summarize(conversation, metadata, summaryContext);
     console.log(`✅ [3/5] Summary generated (${summary.length} chars)`);
@@ -77,8 +81,10 @@ async function captureContext({ project_path, trigger, conversation_data, sessio
       git_commit_hash: metadata.gitHash,
       git_branch: metadata.gitBranch,
       trigger_event: trigger,
-      context_window_size: conversation.messages.length,
-      storage_size_bytes: JSON.stringify(conversation).length
+      context_window_size: message_start_index + conversation.messages.length,
+      storage_size_bytes: JSON.stringify(conversation).length,
+      message_start_index,
+      compaction_index
     });
 
     const duration = Date.now() - startTime;
@@ -87,6 +93,23 @@ async function captureContext({ project_path, trigger, conversation_data, sessio
     console.log(`📊 Messages: ${conversation.messages.length} | Tags: ${metadata.tags?.length || 0} | Files: ${metadata.files?.length || 0}`);
     console.log(`⏱️  Total time: ${(duration / 1000).toFixed(1)}s`);
     console.log(`=== Capture Complete ===\n`);
+
+    // Fire-and-forget: vault writer agent runs async, does not block capture response
+    setImmediate(() => {
+      runSummaryAgent({
+        snapshot_id: snapshot.id,
+        project_path,
+        session_id,
+        compaction_index,
+        message_start_index,
+        context_window_size: message_start_index + conversation.messages.length,
+        summary,
+        tags: metadata.tags || [],
+        mentioned_files: metadata.files || [],
+        key_decisions: metadata.decisions || [],
+        bugs_fixed: metadata.bugs || []
+      }).catch(err => console.error(`❌ [Agent] Unhandled error: ${err.message}`));
+    });
 
     return snapshot;
 

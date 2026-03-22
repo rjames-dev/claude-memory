@@ -109,13 +109,19 @@ services:
       OLLAMA_URL: http://ollama:11434
       USE_REAL_EMBEDDINGS: ${USE_REAL_EMBEDDINGS:-true}
       USE_AI_SUMMARIES: ${USE_AI_SUMMARIES:-true}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      VAULT_ROOT: /vault
+      PLANNING_ROOT: /planning
     ports:
       - "${PROCESSOR_HOST_PORT:-3200}:${PROCESSOR_HOST_PORT:-3200}"
     volumes:
       # Read-only access to Claude workspace (CONFIGURABLE via .env)
       - ${CLAUDE_WORKSPACE_ROOT}:/claude-workspace:ro
       - ./processor/logs:/app/logs
+      # Vault: read-write so summary agent can write session logs and project notes
+      - /home/hp-admin/code/claude-vault:/vault:rw
+      - /home/hp-admin/data/code/hp-feature-planning:/planning:ro
     depends_on:
       context-db:
         condition: service_healthy

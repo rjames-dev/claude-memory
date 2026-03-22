@@ -1,10 +1,10 @@
 /**
- * Summarization via OpenWebUI
- * Generates condensed summaries of conversations
+ * Summarization — Claude API (primary) with Ollama fallback
+ * Delta-aware: each compaction event summarizes only new messages since the last.
  */
 
 const axios = require('axios');
-const { getLastSnapshotForProject } = require('./storage');
+const { getLastSnapshotForProject, getLastSnapshotForSession } = require('./storage');
 
 /**
  * Enhanced system message for Phase 6C session-aware summarization
@@ -106,24 +106,105 @@ Now generate the summary following this structure exactly:
  */
 async function summarize(conversation, metadata = {}, context = {}) {
   try {
-    // Try AI summarization first (via Ollama)
     const useAI = process.env.USE_AI_SUMMARIES !== 'false';
+    if (!useAI) return generateExtractiveSummary(conversation);
 
-    if (useAI) {
+    // Prefer Claude API when key is available (higher quality, delta-aware)
+    if (process.env.ANTHROPIC_API_KEY) {
       try {
-        return await summarizeViaOllama(conversation, metadata, context);
-      } catch (aiError) {
-        console.warn('⚠️  AI summarization failed, falling back to extractive:', aiError.message);
+        return await summarizeViaClaude(conversation, metadata, context);
+      } catch (claudeError) {
+        console.warn('⚠️  Claude API summarization failed, falling back to Ollama:', claudeError.message);
       }
     }
 
-    // Fallback to extractive summary
+    // Fallback: Ollama
+    try {
+      return await summarizeViaOllama(conversation, metadata, context);
+    } catch (ollamaError) {
+      console.warn('⚠️  Ollama summarization failed, falling back to extractive:', ollamaError.message);
+    }
+
     return generateExtractiveSummary(conversation);
 
   } catch (error) {
     console.error('Summarization error:', error);
     return generateExtractiveSummary(conversation);
   }
+}
+
+/**
+ * Summarize via Claude API — delta-aware, high quality.
+ * Only sees the delta messages (new since last compaction). Includes previous
+ * compaction summary as context so the summary is self-contained.
+ */
+async function summarizeViaClaude(conversation, metadata, context) {
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const { project_path, session_id, trigger, message_start_index = 0, compaction_index = 1 } = context;
+  const messages = conversation.messages || [];
+
+  // Get previous compaction summary for within-session continuity
+  let prevSummary = null;
+  if (session_id && compaction_index > 1) {
+    try {
+      const prev = await getLastSnapshotForSession(session_id);
+      if (prev) prevSummary = prev.summary;
+    } catch (e) {
+      console.warn('⚠️  Could not fetch previous compaction summary:', e.message);
+    }
+  }
+
+  // Format delta messages (no truncation — Claude handles full context)
+  const conversationText = messages.map((msg, idx) => {
+    const role = (msg.role || 'unknown').toUpperCase();
+    const content = msg.content || '';
+    return `[MSG ${message_start_index + idx + 1}] ${role}:\n${content}`;
+  }).join('\n\n');
+
+  const metadataBlock = buildMetadataContext(
+    { ...metadata, messageCount: messages.length },
+    context
+  );
+
+  const continuityBlock = prevSummary
+    ? `## Previous Compaction Summary (compaction ${compaction_index - 1}):\n${prevSummary.slice(0, 800)}${prevSummary.length > 800 ? '\n...[truncated]' : ''}`
+    : compaction_index === 1
+      ? '## Session Context: This is the first compaction of this session.'
+      : '## Session Context: No previous compaction summary available.';
+
+  const prompt = `You are the summarization engine for claude-memory, a persistent memory system for Claude Code sessions.
+
+${metadataBlock}
+
+## Compaction Context
+- Session ID: ${session_id || 'N/A'}
+- This is compaction #${compaction_index} of this session
+- Messages in this delta: ${messages.length} (messages ${message_start_index + 1}–${message_start_index + messages.length})
+- Trigger: ${trigger}
+
+${continuityBlock}
+
+## Your Task
+Summarize ONLY the work in this compaction's messages (shown below). Do not re-summarize prior compactions.
+Write 300–600 words. Be technically precise — file names, function names, decisions and their rationale.
+
+${STRUCTURED_OUTPUT_TEMPLATE}
+
+## Conversation (this compaction only):
+
+${conversationText}`;
+
+  console.log(`🤖 Summarizing via Claude API (compaction #${compaction_index}, ${messages.length} delta messages)...`);
+
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2048,
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  return response.content[0].text.trim();
 }
 
 /**
@@ -297,11 +378,16 @@ async function summarizeViaOllama(conversation, metadata, context) {
   const ollamaUrl = process.env.OLLAMA_URL || 'http://ollama:11434';
   const model = process.env.SUMMARY_MODEL || 'llama3.2:latest';
 
-  // 1. Get session boundary (where did we leave off?)
-  const { project_path } = context;
+  // 1. Get session boundary — prefer within-session continuity over project-level
+  const { project_path, session_id, compaction_index = 1 } = context;
   let lastSnapshot = null;
   try {
-    lastSnapshot = await getLastSnapshotForProject(project_path);
+    if (session_id && compaction_index > 1) {
+      lastSnapshot = await getLastSnapshotForSession(session_id);
+    }
+    if (!lastSnapshot) {
+      lastSnapshot = await getLastSnapshotForProject(project_path);
+    }
   } catch (error) {
     console.warn('⚠️  Could not get last snapshot:', error.message);
   }
@@ -386,6 +472,7 @@ Generate the structured summary now following the template exactly:`;
 
 module.exports = {
   summarize,
+  summarizeViaClaude,
   generateExtractiveSummary,
   selectMessagesForSummary,
   buildMetadataContext,

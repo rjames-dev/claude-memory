@@ -200,6 +200,7 @@
         .badge-syntax { background: rgba(255, 165, 0, 0.2); color: #ffa500; }
         .badge-runtime { background: rgba(220, 20, 60, 0.2); color: #dc143c; }
         .badge-other { background: rgba(128, 128, 128, 0.2); color: #808080; }
+        .badge-continuation { background: rgba(0, 188, 212, 0.2); color: #00bcd4; }
 
         .badge-documentation { background: rgba(100, 149, 237, 0.2); color: #6495ed; }
         .badge-javascript { background: rgba(240, 219, 79, 0.2); color: #f0db4f; }
@@ -248,6 +249,9 @@
             <button class="tab" onclick="switchTab('files')">Files</button>
             <button class="tab" onclick="switchTab('decisions')">Decisions</button>
             <button class="tab" onclick="switchTab('agents')">🤖 Agents</button>
+            <button class="tab" onclick="switchTab('activework')">🗂 Active Work</button>
+            <button class="tab" onclick="switchTab('skills')">🛠 Skills</button>
+            <button class="tab" onclick="switchTab('vault')">🔍 Vault</button>
         </div>
 
         <!-- Overview Tab -->
@@ -302,6 +306,30 @@
             <h2>Agent Memory Analytics</h2>
             <div class="grid" id="agents-container">
                 <div class="loading pulse">Loading agent analytics...</div>
+            </div>
+        </div>
+
+        <!-- Active Work Tab -->
+        <div id="tab-activework" class="tab-content">
+            <h2>Active Work</h2>
+            <div class="grid" id="activework-container">
+                <div class="loading pulse">Loading active work...</div>
+            </div>
+        </div>
+
+        <!-- Skills Tab -->
+        <div id="tab-skills" class="tab-content">
+            <h2>Skills Inventory</h2>
+            <div class="grid" id="skills-container">
+                <div class="loading pulse">Loading skills...</div>
+            </div>
+        </div>
+
+        <!-- Vault Tab -->
+        <div id="tab-vault" class="tab-content">
+            <h2>Vault Intelligence</h2>
+            <div id="vault-container">
+                <div class="loading pulse">Loading vault stats...</div>
             </div>
         </div>
     </div>
@@ -363,12 +391,16 @@
                         <span class="stat-value success">● Connected</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">Total Snapshots</span>
+                        <span class="stat-label">Sessions</span>
+                        <span class="stat-value">${stats.sessions.tracked}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Compactions</span>
                         <span class="stat-value">${stats.captures.total}</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">Tracked Sessions</span>
-                        <span class="stat-value">${stats.sessions.tracked}</span>
+                        <span class="stat-label">Avg / Session</span>
+                        <span class="stat-value">${stats.sessions.avgCompactionsPerSession}</span>
                     </div>
                 </div>
 
@@ -390,12 +422,16 @@
                 <div class="card">
                     <div class="card-header">Recent Activity</div>
                     <div class="stat-row">
-                        <span class="stat-label">Today</span>
+                        <span class="stat-label">Sessions Today</span>
+                        <span class="stat-value">${stats.sessions.today}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Compactions Today</span>
                         <span class="stat-value">${stats.captures.today}</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">This Week</span>
-                        <span class="stat-value">${stats.captures.week}</span>
+                        <span class="stat-label">Sessions This Week</span>
+                        <span class="stat-value">${stats.sessions.week}</span>
                     </div>
                     <div class="stat-row">
                         <span class="stat-label">Last Capture</span>
@@ -409,9 +445,10 @@
                         <div class="list-item">
                             <div class="list-item-header">
                                 <strong>${getProjectName(c.project_path)}</strong>
+                                <span class="badge ${c.capture_type === 'FIRST' ? '' : 'badge-continuation'}" style="font-size:10px;padding:2px 6px;margin-right:4px;">${c.capture_type === 'FIRST' ? 'FIRST' : 'COMPACT #' + c.compaction_index}</span>
                                 <span>${formatTimeAgo((new Date() - new Date(c.timestamp))/1000)}</span>
                             </div>
-                            <div class="list-item-content">${c.messages} messages</div>
+                            <div class="list-item-content">${c.delta_messages} new msgs (${c.message_start_index}–${c.total_messages} total)</div>
                         </div>
                     `).join('')}
                 </div>
@@ -472,19 +509,19 @@
                 <div class="card" style="margin-bottom: 20px;">
                     <div class="card-header">${getProjectName(p.project_path)}</div>
                     <div class="stat-row">
-                        <span class="stat-label">Snapshots</span>
-                        <span class="stat-value">${p.total_snapshots}</span>
-                    </div>
-                    <div class="stat-row">
                         <span class="stat-label">Sessions</span>
                         <span class="stat-value">${p.tracked_sessions}</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">Messages</span>
+                        <span class="stat-label">Compactions</span>
+                        <span class="stat-value">${p.total_snapshots}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Delta Msgs</span>
                         <span class="stat-value">${p.total_messages}</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">Avg per Snapshot</span>
+                        <span class="stat-label">Avg Delta Size</span>
                         <span class="stat-value">${p.avg_messages_per_snapshot}</span>
                     </div>
                     <div class="stat-row">
@@ -555,12 +592,19 @@
         async function updateDecisions() {
             const decisions = await fetchJSON('/api/decisions');
 
+            if (!decisions.length) {
+                document.getElementById('decisions-container').innerHTML =
+                    `<p style="padding:20px;color:#888;text-align:center;">No decisions captured yet.</p>`;
+                return;
+            }
+
             document.getElementById('decisions-container').innerHTML = `
                 <div class="grid">
                     ${decisions.map(d => `
                         <div class="list-item">
                             <div class="list-item-header">
-                                <strong>Snapshot #${d.snapshot_id}</strong>
+                                <strong>${getProjectName(d.source || '')}</strong>
+                                <span style="color:#888;font-size:11px;">snapshot #${d.snapshot_id} · compaction #${d.compaction_index || '?'}</span>
                                 <span>${formatTimeAgo((new Date() - new Date(d.pst_time))/1000)}</span>
                             </div>
                             <div class="list-item-content">${d.decision_text}</div>
@@ -575,6 +619,16 @@
             const performance = await fetchJSON('/api/agents/performance');
             const tools = await fetchJSON('/api/agents/tools');
             const recent = await fetchJSON('/api/agents/recent');
+
+            if (parseInt(stats.overview.total_agents) === 0) {
+                document.getElementById('agents-container').innerHTML = `
+                    <div class="card wide-card">
+                        <div class="card-header">Agent Memory</div>
+                        <p style="padding:20px;color:#888;text-align:center;">No agent work captured yet.<br>
+                        Agent capture fires when Claude Code spawns subagents during a session with the PreCompact hook active.</p>
+                    </div>`;
+                return;
+            }
 
             document.getElementById('agents-container').innerHTML = `
                 <div class="card">
@@ -655,6 +709,221 @@
             `;
         }
 
+        async function updateActiveWork() {
+            const [vault, planning] = await Promise.all([
+                fetchJSON('/api/vault/projects'),
+                fetchJSON('/api/planning/states')
+            ]);
+
+            const vaultHtml = vault.length === 0
+                ? '<p style="color:#8899a6;font-size:13px;">No vault projects found.</p>'
+                : vault.map(p => `
+                    <div class="list-item" style="margin-bottom:12px;">
+                        <div class="list-item-header">
+                            <strong style="font-size:14px;">${p.name}</strong>
+                            <span style="color:#8899a6;font-size:12px;">${p.updated || '—'}</span>
+                        </div>
+                        <div style="color:#00d26a;font-size:12px;margin:6px 0;">${p.phase || '(no phase)'}</div>
+                        ${p.steps && p.steps.length ? `
+                            <div style="color:#8899a6;font-size:12px;">
+                                ${p.steps.map((s,i) => `<div>${i+1}. ${s}</div>`).join('')}
+                            </div>` : ''}
+                    </div>`).join('');
+
+            const planningHtml = planning.length === 0
+                ? '<p style="color:#8899a6;font-size:13px;">No planning states found.</p>'
+                : planning.map(p => `
+                    <div class="list-item" style="margin-bottom:12px;">
+                        <div class="list-item-header">
+                            <strong style="font-size:13px;">${p.folder}</strong>
+                            <span style="color:#8899a6;font-size:12px;">${p.updated || '—'}</span>
+                        </div>
+                        <div style="color:#ffa600;font-size:12px;margin:4px 0;">${p.status || '—'}</div>
+                        ${p.next ? `<div style="color:#8899a6;font-size:12px;">→ ${p.next.substring(0,120)}${p.next.length>120?'...':''}</div>` : ''}
+                    </div>`).join('');
+
+            document.getElementById('activework-container').innerHTML = `
+                <div class="card">
+                    <div class="card-header">Vault Projects (${vault.length})</div>
+                    ${vaultHtml}
+                </div>
+                <div class="card">
+                    <div class="card-header">Planning States (${planning.length})</div>
+                    ${planningHtml}
+                </div>
+            `;
+        }
+
+        async function updateSkills() {
+            const data = await fetchJSON('/api/skills');
+            const { skills, categories } = data;
+
+            const categoryBadgeColors = {
+                orchestration: '#00d26a',
+                database:      '#8a2be2',
+                monitoring:    '#1e90ff',
+                maintenance:   '#ffa500',
+                onboarding:    '#00ced1',
+                development:   '#ff69b4',
+                'project-management': '#ffd700',
+            };
+
+            const catHtml = categories.map(c => `
+                <div class="stat-row">
+                    <span class="stat-label">${c.category}</span>
+                    <span class="stat-value">${c.count} skills · ${c.total_uses || 0} uses</span>
+                </div>`).join('');
+
+            const skillsHtml = skills.map(s => {
+                const color = categoryBadgeColors[s.category] || '#8899a6';
+                const lastUsed = s.last_used ? formatTimeAgo((new Date() - new Date(s.last_used))/1000) : 'never';
+                return `
+                <div class="list-item">
+                    <div class="list-item-header">
+                        <strong>${s.display_name || s.agent_name}</strong>
+                        <span style="color:${color};font-size:11px;font-weight:600;text-transform:uppercase;">${s.category}</span>
+                    </div>
+                    <div style="color:#8899a6;font-size:12px;margin:4px 0;">${s.description || ''}</div>
+                    <div style="color:#8899a6;font-size:11px;margin-top:6px;">
+                        ${s.trigger_count} triggers · used ${s.use_count}x · last: ${lastUsed} · confidence: ${(s.confidence_score*100).toFixed(0)}%
+                        ${!s.is_active ? ' · <span style="color:#ff4444;">INACTIVE</span>' : ''}
+                    </div>
+                </div>`;
+            }).join('');
+
+            document.getElementById('skills-container').innerHTML = `
+                <div class="card">
+                    <div class="card-header">By Category (${skills.length} total)</div>
+                    ${catHtml}
+                </div>
+                <div class="card wide-card">
+                    <div class="card-header">All Skills</div>
+                    ${skillsHtml}
+                </div>
+            `;
+        }
+
+        async function updateVault() {
+            const v = await fetchJSON('/api/vault/stats');
+
+            // Session cadence
+            const sessionCount = v.sessions.total;
+            const lastSession = v.sessions.last || '—';
+            const firstSession = v.sessions.first || '—';
+            let gapDays = '—';
+            if (v.sessions.dates.length >= 2) {
+                const d1 = new Date(v.sessions.dates[v.sessions.dates.length - 1]);
+                const d2 = new Date(v.sessions.dates[v.sessions.dates.length - 2]);
+                gapDays = Math.round((d1 - d2) / 86400000) + 'd';
+            }
+
+            // Decision timeline (last 6 months)
+            const decMonths = v.decisions.byMonth.slice(-6);
+
+            // Tag cloud HTML
+            const maxTagCount = v.tagCloud[0]?.count || 1;
+            const tagHtml = v.tagCloud.map(t => {
+                const size = 10 + Math.round((t.count / maxTagCount) * 10);
+                const opacity = 0.5 + (t.count / maxTagCount) * 0.5;
+                return `<span style="font-size:${size}px;opacity:${opacity};margin:4px;display:inline-block;color:#00d26a;">${t.tag}<sup style="font-size:9px;color:#8899a6;"> ${t.count}</sup></span>`;
+            }).join('');
+
+            // Document depth
+            const depthHtml = v.projectDepth.map(p => {
+                const barW = Math.min(100, Math.round((p.fileCount / (v.projectDepth[0]?.fileCount || 1)) * 100));
+                return `
+                    <div class="stat-row">
+                        <span class="stat-label" style="max-width:220px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${p.project}">${p.project}</span>
+                        <span class="stat-value">${p.fileCount} notes</span>
+                    </div>
+                    <div class="progress-bar"><div class="progress-fill" style="width:${barW}%"></div></div>`;
+            }).join('');
+
+            // Open items
+            const openHtml = v.openItems.byFile.length === 0
+                ? '<p style="color:#8899a6;font-size:13px;">No open items found.</p>'
+                : v.openItems.byFile.map(f => `
+                    <div class="list-item">
+                        <div class="list-item-header">
+                            <strong style="font-size:13px;">${f.file.split('/').pop().replace('.md','')}</strong>
+                            <span style="color:#ffa600;font-size:11px;">${f.total} open</span>
+                        </div>
+                        <div style="color:#8899a6;font-size:12px;margin-top:4px;">
+                            ${f.items.map(i => `<div>☐ ${i.substring(0,90)}${i.length>90?'…':''}</div>`).join('')}
+                            ${f.total > f.items.length ? `<div style="color:#444;font-size:11px;">+${f.total - f.items.length} more…</div>` : ''}
+                        </div>
+                        <div style="color:#555;font-size:11px;margin-top:3px;">${f.file}</div>
+                    </div>`).join('');
+
+            // Decision velocity chart (simple bar)
+            const decMax = Math.max(...decMonths.map(d => d.count), 1);
+            const decHtml = decMonths.length === 0
+                ? '<p style="color:#8899a6;font-size:13px;">No decisions found.</p>'
+                : `<div style="display:flex;align-items:flex-end;gap:8px;height:60px;margin-top:10px;">
+                    ${decMonths.map(d => {
+                        const h = Math.max(4, Math.round((d.count / decMax) * 56));
+                        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+                            <span style="font-size:10px;color:#8899a6;margin-bottom:2px;">${d.count}</span>
+                            <div style="width:100%;background:#00d26a;border-radius:2px;height:${h}px;"></div>
+                            <span style="font-size:9px;color:#555;margin-top:3px;">${d.month.slice(5)}</span>
+                        </div>`;
+                    }).join('')}
+                </div>`;
+
+            document.getElementById('vault-container').innerHTML = `
+                <div class="grid">
+                    <div class="card">
+                        <div class="card-header">Last Active File</div>
+                        <div style="color:#00d26a;font-size:13px;word-break:break-all;margin-top:8px;">
+                            ${v.lastActive || '<span style="color:#8899a6;">Unavailable</span>'}
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">Session Cadence</div>
+                        <div class="stat-row">
+                            <span class="stat-label">Total Sessions</span>
+                            <span class="stat-value success">${sessionCount}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">First</span>
+                            <span class="stat-value">${firstSession}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Last</span>
+                            <span class="stat-value">${lastSession}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Gap (last 2)</span>
+                            <span class="stat-value">${gapDays}</span>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">Decision Velocity (last 6 months · ${v.decisions.total} total)</div>
+                        ${decHtml}
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">Document Depth by Project</div>
+                        ${depthHtml || '<p style="color:#8899a6;font-size:13px;">No projects.</p>'}
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">Tag Cloud (${v.tagCloud.length} tags)</div>
+                        <div style="margin-top:8px;line-height:2;">
+                            ${tagHtml || '<span style="color:#8899a6;font-size:13px;">No tags found.</span>'}
+                        </div>
+                    </div>
+
+                    <div class="card wide-card">
+                        <div class="card-header">Open Items — ${v.openItems.totalItems} across ${v.openItems.totalFiles} files</div>
+                        ${openHtml}
+                    </div>
+                </div>
+            `;
+        }
+
         async function updateDashboard() {
             try {
                 if (currentTab === 'overview') await updateOverview();
@@ -664,6 +933,9 @@
                 else if (currentTab === 'files') await updateFiles();
                 else if (currentTab === 'decisions') await updateDecisions();
                 else if (currentTab === 'agents') await updateAgents();
+                else if (currentTab === 'activework') await updateActiveWork();
+                else if (currentTab === 'skills') await updateSkills();
+                else if (currentTab === 'vault') await updateVault();
 
                 countdown = 15;
             } catch (error) {

@@ -66,14 +66,17 @@ def parse_transcript(transcript_path):
         print(f"Error parsing transcript: {e}", file=sys.stderr)
         return None
 
-def capture_conversation(messages, project_path, trigger, session_id, transcript_path):
-    """Send conversation to claude-memory processor for capture."""
+def capture_conversation(messages, project_path, trigger, session_id, transcript_path,
+                         message_start_index=0, compaction_index=1):
+    """Send conversation delta to claude-memory processor for capture."""
     try:
         payload = {
             "project_path": project_path,
             "trigger": f"auto-compact-{trigger}-{datetime.now().strftime('%Y-%m-%d-%H-%M')}",
             "session_id": session_id,
             "transcript_path": transcript_path,
+            "message_start_index": message_start_index,
+            "compaction_index": compaction_index,
             "conversation_data": {
                 "messages": messages
             },
@@ -99,46 +102,57 @@ def capture_conversation(messages, project_path, trigger, session_id, transcript
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-def get_snapshot_id_for_session(session_id):
-    """
-    Retrieve the most recent snapshot ID for a session.
+def get_db_conn():
+    """Open a direct psycopg2 connection using env vars."""
+    import psycopg2
+    db_password = os.getenv('CONTEXT_DB_PASSWORD')
+    if not db_password:
+        # Try reading from .env file
+        env_file = Path(__file__).parent.parent / '.env'
+        if env_file.exists():
+            for line in env_file.read_text().splitlines():
+                if line.startswith('CONTEXT_DB_PASSWORD='):
+                    db_password = line.split('=', 1)[1].strip().strip('"').strip("'")
+                    break
+    if not db_password:
+        raise ValueError("CONTEXT_DB_PASSWORD not found")
+    return psycopg2.connect(
+        host=os.getenv('POSTGRES_HOST', 'localhost'),
+        port=int(os.getenv('POSTGRES_HOST_PORT', '5435')),
+        database=os.getenv('POSTGRES_DB', 'claude_memory'),
+        user=os.getenv('POSTGRES_USER', 'memory_admin'),
+        password=db_password
+    )
 
-    This is needed to link agent work to the parent snapshot.
+def get_last_snapshot_for_session(session_id):
     """
+    Return (id, context_window_size, compaction_index) for the most recent
+    snapshot of this session, or None if this is the first compaction.
+    """
+    if not session_id:
+        return None
     try:
-        import psycopg2
-        import os
-
-        # Database configuration (same as agent_capture module)
-        db_password = os.getenv('CONTEXT_DB_PASSWORD')
-        if not db_password:
-            raise ValueError("CONTEXT_DB_PASSWORD environment variable required")
-
-        conn = psycopg2.connect(
-            host=os.getenv('POSTGRES_HOST', 'localhost'),
-            port=int(os.getenv('POSTGRES_HOST_PORT', '5435')),
-            database=os.getenv('POSTGRES_DB', 'claude_memory'),
-            user=os.getenv('POSTGRES_USER', 'memory_admin'),
-            password=db_password
-        )
-
+        conn = get_db_conn()
         cur = conn.cursor()
         cur.execute("""
-            SELECT id FROM context_snapshots
+            SELECT id, context_window_size, compaction_index
+            FROM context_snapshots
             WHERE session_id = %s
-            ORDER BY timestamp DESC
+            ORDER BY compaction_index DESC
             LIMIT 1
         """, (session_id,))
-
         result = cur.fetchone()
         cur.close()
         conn.close()
-
-        return result[0] if result else None
-
+        return result  # (id, context_window_size, compaction_index) or None
     except Exception as e:
-        print(f"Error getting snapshot ID: {e}", file=sys.stderr)
+        print(f"Warning: could not query previous snapshot: {e}", file=sys.stderr)
         return None
+
+def get_snapshot_id_for_session(session_id):
+    """Return just the snapshot ID — used to link agent work to parent snapshot."""
+    result = get_last_snapshot_for_session(session_id)
+    return result[0] if result else None
 
 def capture_agents_for_session(transcript_path, session_id):
     """
@@ -213,15 +227,34 @@ def main():
         print("Error: No transcript_path provided", file=sys.stderr)
         sys.exit(1)
     
-    # Parse conversation from transcript
-    messages = parse_transcript(transcript_path)
-    
-    if not messages or len(messages) == 0:
+    # Parse full conversation from transcript
+    all_messages = parse_transcript(transcript_path)
+
+    if not all_messages or len(all_messages) == 0:
         print("Warning: No messages found in transcript", file=sys.stderr)
         sys.exit(0)
-    
-    # Capture conversation
-    result = capture_conversation(messages, cwd, trigger, session_id, transcript_path)
+
+    # Determine delta: only send messages since the last compaction of this session
+    message_start_index = 0
+    compaction_index = 1
+    prev = get_last_snapshot_for_session(session_id)
+    if prev:
+        prev_id, prev_msg_count, prev_compact_idx = prev
+        message_start_index = prev_msg_count
+        compaction_index = prev_compact_idx + 1
+        delta_messages = all_messages[prev_msg_count:]
+        if not delta_messages:
+            print("No new messages since last compaction — skipping capture.", file=sys.stderr)
+            sys.exit(0)
+        print(f"Delta capture: compaction #{compaction_index}, messages {prev_msg_count + 1}–{len(all_messages)} ({len(delta_messages)} new)", file=sys.stderr)
+    else:
+        delta_messages = all_messages
+        print(f"First compaction: capturing all {len(delta_messages)} messages", file=sys.stderr)
+
+    # Capture delta
+    result = capture_conversation(delta_messages, cwd, trigger, session_id, transcript_path,
+                                  message_start_index=message_start_index,
+                                  compaction_index=compaction_index)
 
     # If conversation capture succeeded, also capture any agent work
     agent_result = None
