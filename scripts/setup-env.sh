@@ -77,6 +77,42 @@ fi
 
 echo ""
 
+# ---------------------------------------------------------------------------
+# Vault root — where claude-vault lives on this machine
+# ---------------------------------------------------------------------------
+DEFAULT_VAULT_ROOT="$WORKSPACE_ROOT/claude-vault"
+
+EXISTING_VAULT_ROOT=""
+if grep -q "^VAULT_ROOT=" "$PROJECT_ROOT/.env" 2>/dev/null; then
+    EXISTING_VAULT_ROOT=$(grep "^VAULT_ROOT=" "$PROJECT_ROOT/.env" | cut -d= -f2 | tr -d '"' | tr -d "'")
+fi
+
+if [ -n "$EXISTING_VAULT_ROOT" ] && [ "$EXISTING_VAULT_ROOT" != '${CLAUDE_WORKSPACE_ROOT}/claude-vault' ]; then
+    echo -e "${GREEN}✅ VAULT_ROOT already set: $EXISTING_VAULT_ROOT${NC}"
+else
+    echo -e "${BLUE}── Vault Root ───────────────────────────────────────────────${NC}"
+    echo ""
+    echo "Where should the Obsidian vault (claude-vault) live?"
+    echo "  Default: $DEFAULT_VAULT_ROOT"
+    echo ""
+    read -p "Vault path (press Enter for default): " -r VAULT_INPUT
+    echo ""
+    VAULT_ROOT="${VAULT_INPUT:-$DEFAULT_VAULT_ROOT}"
+
+    if grep -q "^VAULT_ROOT=" "$PROJECT_ROOT/.env" 2>/dev/null; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|^VAULT_ROOT=.*|VAULT_ROOT=$VAULT_ROOT|" "$PROJECT_ROOT/.env"
+        else
+            sed -i "s|^VAULT_ROOT=.*|VAULT_ROOT=$VAULT_ROOT|" "$PROJECT_ROOT/.env"
+        fi
+    else
+        echo "VAULT_ROOT=$VAULT_ROOT" >> "$PROJECT_ROOT/.env"
+    fi
+    echo -e "${GREEN}✅ VAULT_ROOT set to $VAULT_ROOT${NC}"
+fi
+
+echo ""
+
 # Check if password is set
 if grep -q "^CONTEXT_DB_PASSWORD=your_secure_password_here" "$PROJECT_ROOT/.env" || grep -q "^CONTEXT_DB_PASSWORD=$" "$PROJECT_ROOT/.env"; then
     echo -e "${YELLOW}⚠️  Warning: CONTEXT_DB_PASSWORD not configured${NC}"

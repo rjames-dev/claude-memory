@@ -15,7 +15,7 @@ echo ""
 # Check if processor is running
 if ! curl -sf "${PROCESSOR_URL}/health" > /dev/null 2>&1; then
     echo "❌ Error: claude-memory processor not responding"
-    echo "   Check: docker compose ps in ~/Data/00 GITHUB/Code/claude-memory"
+    echo "   Check: docker compose ps in the claude-memory directory"
     exit 1
 fi
 

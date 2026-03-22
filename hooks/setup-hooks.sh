@@ -25,50 +25,80 @@ echo ""
 
 # ---------------------------------------------------------------------------
 # Provision Obsidian vault
-# vault_root = CLAUDE_WORKSPACE_ROOT/vault (convention, not config)
+# Uses VAULT_ROOT from .env (set by setup-env.sh)
+# Falls back to CLAUDE_WORKSPACE_ROOT/claude-vault if not set
 # ---------------------------------------------------------------------------
 
-# Read CLAUDE_WORKSPACE_ROOT from .env if not in environment
-if [ -z "$CLAUDE_WORKSPACE_ROOT" ] && [ -f "$CLAUDE_MEMORY_DIR/.env" ]; then
-    CLAUDE_WORKSPACE_ROOT=$(grep "^CLAUDE_WORKSPACE_ROOT=" "$CLAUDE_MEMORY_DIR/.env" | cut -d= -f2 | tr -d '"' | tr -d "'")
+# Read env vars from .env if not already in environment
+if [ -f "$CLAUDE_MEMORY_DIR/.env" ]; then
+    [ -z "$VAULT_ROOT" ]             && VAULT_ROOT=$(grep "^VAULT_ROOT=" "$CLAUDE_MEMORY_DIR/.env" | cut -d= -f2 | tr -d '"' | tr -d "'")
+    [ -z "$CLAUDE_WORKSPACE_ROOT" ]  && CLAUDE_WORKSPACE_ROOT=$(grep "^CLAUDE_WORKSPACE_ROOT=" "$CLAUDE_MEMORY_DIR/.env" | cut -d= -f2 | tr -d '"' | tr -d "'")
 fi
 
-if [ -n "$CLAUDE_WORKSPACE_ROOT" ]; then
-    VAULT_ROOT="$CLAUDE_WORKSPACE_ROOT/vault"
+# Derive default vault root if still not set
+if [ -z "$VAULT_ROOT" ] && [ -n "$CLAUDE_WORKSPACE_ROOT" ]; then
+    VAULT_ROOT="$CLAUDE_WORKSPACE_ROOT/claude-vault"
+fi
 
+if [ -n "$VAULT_ROOT" ]; then
     if [ -d "$VAULT_ROOT" ]; then
         echo "✅ Obsidian vault already exists at $VAULT_ROOT"
         echo ""
     else
-        echo "📓 Obsidian vault not found — cloning template..."
-        echo "   Destination: $VAULT_ROOT"
+        echo "📓 Obsidian vault not found at $VAULT_ROOT"
+        echo ""
+        echo "Choose how to provision it:"
+        echo "  1) Clone vault template (fresh start — recommended for new installs)"
+        echo "  2) Clone your existing private vault"
+        echo "  3) Create minimal folder structure only"
+        echo ""
+        read -p "Choice [1/2/3]: " -r VAULT_CHOICE
         echo ""
 
-        if git clone "$VAULT_TEMPLATE_REPO" "$VAULT_ROOT" 2>&1; then
-            # Remove template's git history so user starts fresh
-            rm -rf "$VAULT_ROOT/.git"
-            echo ""
-            echo "✅ Vault template cloned to $VAULT_ROOT"
-            echo "   Git history cleared — this is now your private vault."
-            echo ""
-            echo "   Next: open Obsidian → 'Open folder as vault' → select:"
-            echo "   $VAULT_ROOT"
-            echo ""
-        else
-            echo "⚠️  Could not clone vault template (no internet or invalid URL)"
-            echo "   Creating minimal vault structure instead..."
-            mkdir -p "$VAULT_ROOT"/{Calendar,Events,Research,Projects}
-            mkdir -p "$VAULT_ROOT"/Claude/{Session-Logs,Knowledge-Base,Scratch}
-            # Copy CLAUDE.md from claude-memory if it exists
-            if [ -f "$CLAUDE_MEMORY_DIR/vault-template/CLAUDE.md" ]; then
-                cp "$CLAUDE_MEMORY_DIR/vault-template/CLAUDE.md" "$VAULT_ROOT/CLAUDE.md"
-            fi
-            echo "✅ Minimal vault structure created at $VAULT_ROOT"
-            echo ""
-        fi
+        case "$VAULT_CHOICE" in
+            2)
+                read -p "Enter your vault git repo URL: " -r PRIVATE_VAULT_REPO
+                echo ""
+                if git clone "$PRIVATE_VAULT_REPO" "$VAULT_ROOT" 2>&1; then
+                    echo "✅ Private vault cloned to $VAULT_ROOT"
+                    echo ""
+                else
+                    echo "❌ Clone failed — check the URL and your SSH/token access"
+                    exit 1
+                fi
+                ;;
+            3)
+                mkdir -p "$VAULT_ROOT"/{Calendar,Events,Research,Projects}
+                mkdir -p "$VAULT_ROOT"/Claude/{Session-Logs,Knowledge-Base,Scratch}
+                echo "✅ Minimal vault structure created at $VAULT_ROOT"
+                echo ""
+                ;;
+            *)
+                # Default: clone template
+                echo "📥 Cloning vault template..."
+                if git clone "$VAULT_TEMPLATE_REPO" "$VAULT_ROOT" 2>&1; then
+                    rm -rf "$VAULT_ROOT/.git"
+                    echo ""
+                    echo "✅ Vault template cloned to $VAULT_ROOT"
+                    echo "   Git history cleared — initialize as your own private repo when ready:"
+                    echo "   cd $VAULT_ROOT && git init && git remote add origin <your-private-repo-url>"
+                    echo ""
+                else
+                    echo "⚠️  Could not clone vault template — creating minimal structure instead..."
+                    mkdir -p "$VAULT_ROOT"/{Calendar,Events,Research,Projects}
+                    mkdir -p "$VAULT_ROOT"/Claude/{Session-Logs,Knowledge-Base,Scratch}
+                    echo "✅ Minimal vault structure created at $VAULT_ROOT"
+                    echo ""
+                fi
+                ;;
+        esac
+
+        echo "   Next: open Obsidian → 'Open folder as vault' → select:"
+        echo "   $VAULT_ROOT"
+        echo ""
     fi
 else
-    echo "⚠️  CLAUDE_WORKSPACE_ROOT not set — skipping vault setup"
+    echo "⚠️  VAULT_ROOT not set — skipping vault setup"
     echo "   Run scripts/setup-env.sh first, then re-run this script."
     echo ""
 fi

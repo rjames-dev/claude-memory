@@ -26,6 +26,9 @@ import argparse
 import time
 from datetime import datetime
 
+# Script location for portable path resolution
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Test configuration
 TEST_SKILL_PREFIX = f"test-integration-{int(time.time())}-"
 VERBOSE = True
@@ -116,7 +119,7 @@ def test_skill_creation(results, password):
     print(f"\n{YELLOW}=== Testing Skill Creation ==={RESET}")
 
     # Test 1: Create valid skill
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 create-skill.py \
         --name "{TEST_SKILL_PREFIX}basic" \
@@ -146,7 +149,7 @@ def test_skill_creation(results, password):
         results.add_fail("Reject duplicate skill", "Unexpected error")
 
     # Test 3: Invalid skill name rejection
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 create-skill.py \
         --name "Invalid Name With Spaces" \
@@ -167,7 +170,7 @@ def test_skill_creation(results, password):
         results.add_fail("Reject invalid skill name", "Unexpected error")
 
     # Test 4: Create skill with parameters
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 create-skill.py \
         --name "{TEST_SKILL_PREFIX}params" \
@@ -194,7 +197,7 @@ def test_skill_listing(results, password):
     print(f"\n{YELLOW}=== Testing Skill Listing ==={RESET}")
 
     # Test 1: List all skills (table format)
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 list-skills.py
     """
@@ -208,7 +211,7 @@ def test_skill_listing(results, password):
         results.add_pass("List skills - table format")
 
     # Test 2: List skills (JSON format)
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 list-skills.py --format json
     """
@@ -227,7 +230,7 @@ def test_skill_listing(results, password):
             results.add_fail("List skills - JSON format", f"Invalid JSON: {e}")
 
     # Test 3: Filter by category
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 list-skills.py --category testing
     """
@@ -241,7 +244,7 @@ def test_skill_listing(results, password):
         results.add_pass("Filter by category")
 
     # Test 4: Sort by name
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 list-skills.py --sort name --format compact
     """
@@ -253,7 +256,7 @@ def test_skill_listing(results, password):
         results.add_pass("Sort by name")
 
     # Test 5: Limit results
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 list-skills.py --limit 2 --format json
     """
@@ -277,7 +280,7 @@ def test_skill_info(results, password):
     print(f"\n{YELLOW}=== Testing Skill Info ==={RESET}")
 
     # Test 1: Get skill info by name
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py {TEST_SKILL_PREFIX}basic
     """
@@ -291,7 +294,7 @@ def test_skill_info(results, password):
         results.add_pass("Get skill info by name")
 
     # Test 2: Get skill info (JSON format)
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py {TEST_SKILL_PREFIX}basic --format json
     """
@@ -310,7 +313,7 @@ def test_skill_info(results, password):
             results.add_fail("Get skill info - JSON", f"Invalid JSON: {e}")
 
     # Test 3: Show full script
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py {TEST_SKILL_PREFIX}basic --show-script
     """
@@ -324,7 +327,7 @@ def test_skill_info(results, password):
         results.add_pass("Show full script")
 
     # Test 4: Nonexistent skill
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py nonexistent-skill-xyz
     """
@@ -343,7 +346,7 @@ def test_skill_execution(results, password):
     print(f"\n{YELLOW}=== Testing Skill Execution ==={RESET}")
 
     # Test 1: Dry run
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 execute-skill.py {TEST_SKILL_PREFIX}basic --dry-run
     """
@@ -357,7 +360,7 @@ def test_skill_execution(results, password):
         results.add_pass("Dry run execution")
 
     # Test 2: Execute skill successfully
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 execute-skill.py {TEST_SKILL_PREFIX}basic --time-saved 10
     """
@@ -373,7 +376,7 @@ def test_skill_execution(results, password):
         results.add_pass("Execute skill")
 
     # Test 3: Verify counters updated
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py {TEST_SKILL_PREFIX}basic --format json
     """
@@ -393,7 +396,7 @@ def test_skill_execution(results, password):
             results.add_fail("Verify execution counters", f"Parse error: {e}")
 
     # Test 4: Create and execute failing skill
-    create_cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    create_cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 create-skill.py \
         --name "{TEST_SKILL_PREFIX}fail" \
@@ -410,7 +413,7 @@ def test_skill_execution(results, password):
         results.add_fail("Create failing skill", error)
         return
 
-    exec_cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    exec_cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 execute-skill.py {TEST_SKILL_PREFIX}fail --time-saved 5
     """
@@ -424,7 +427,7 @@ def test_skill_execution(results, password):
         results.add_fail("Failing skill execution", "Unexpected error")
 
     # Test 5: Verify failure counter
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py {TEST_SKILL_PREFIX}fail --format json
     """
@@ -451,7 +454,7 @@ def test_complete_workflow(results, password):
     workflow_skill = f"{TEST_SKILL_PREFIX}workflow"
 
     # Step 1: Create skill
-    create_cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    create_cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 create-skill.py \
         --name "{workflow_skill}" \
@@ -469,7 +472,7 @@ def test_complete_workflow(results, password):
         return
 
     # Step 2: List and verify
-    list_cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    list_cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 list-skills.py --format json
     """
@@ -490,7 +493,7 @@ def test_complete_workflow(results, password):
         return
 
     # Step 3: Get info
-    info_cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    info_cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py {workflow_skill}
     """
@@ -501,7 +504,7 @@ def test_complete_workflow(results, password):
         return
 
     # Step 4: Execute
-    exec_cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    exec_cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 execute-skill.py {workflow_skill} --time-saved 20
     """
@@ -512,7 +515,7 @@ def test_complete_workflow(results, password):
         return
 
     # Step 5: Verify execution in history
-    info_cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    info_cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py {workflow_skill} --format json
     """
@@ -537,7 +540,7 @@ def test_database_consistency(results, password):
     print(f"\n{YELLOW}=== Testing Database Consistency ==={RESET}")
 
     # Test 1: Success rate calculation
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py {TEST_SKILL_PREFIX}basic --format json
     """
@@ -565,7 +568,7 @@ def test_database_consistency(results, password):
 
     # Test 2: Trigger count consistency
     workflow_skill = f"{TEST_SKILL_PREFIX}workflow"
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 skill-info.py {workflow_skill} --format json
     """
@@ -592,7 +595,7 @@ def cleanup_test_skills(password):
     print(f"\n{YELLOW}=== Cleaning Up Test Skills ==={RESET}")
 
     # Get list of test skills
-    cmd = f"""cd /Users/jamesmba/Data/00\\ GITHUB/Code/claude-memory && \
+    cmd = f"""cd {SCRIPT_DIR} && \
         export CONTEXT_DB_PASSWORD="{password}" && \
         python3 list-skills.py --format json
     """

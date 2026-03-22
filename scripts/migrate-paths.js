@@ -75,10 +75,10 @@ Arguments:
 
 Examples:
   # Preview migration (safe - no changes)
-  node scripts/migrate-paths.js preview "/Users/jamesmba/Data/00 GITHUB" "/Users/jamesmba/Projects"
+  node scripts/migrate-paths.js preview "/Users/oldname/code" "/home/newname/code"
 
   # Apply migration (requires confirmation)
-  node scripts/migrate-paths.js apply "/Users/jamesmba/Data/00 GITHUB" "/Users/jamesmba/Projects"
+  node scripts/migrate-paths.js apply "/Users/oldname/code" "/home/newname/code"
 
 Environment:
   Database connection is configured via .env file or defaults:

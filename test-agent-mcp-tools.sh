@@ -8,7 +8,7 @@ echo "🧪 Testing Agent MCP Tools - Phase 5"
 echo "===================================="
 echo ""
 
-MEMORY_DIR="/Users/jamesmba/Data/00 GITHUB/Code/claude-memory"
+MEMORY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DB_HOST="localhost"
 DB_PORT="5435"
 DB_NAME="claude_memory"

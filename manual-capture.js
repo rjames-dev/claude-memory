@@ -86,12 +86,12 @@ for (const msg of messages) {
   }
 }
 
-// Detect project path from content
-let projectPath = '/Users/jamesmba/Data/00 GITHUB/Code/NLQ-Tools';
+// Detect project path from content (falls back to current working directory)
+let projectPath = process.cwd();
 if (content.includes('NLQ-Tools')) {
-  projectPath = '/Users/jamesmba/Data/00 GITHUB/Code/NLQ-Tools';
+  projectPath = path.join(process.env.CLAUDE_WORKSPACE_ROOT || process.cwd(), 'NLQ-Tools');
 } else if (content.includes('claude-memory')) {
-  projectPath = '/Users/jamesmba/Data/00 GITHUB/Code/claude-memory';
+  projectPath = path.join(process.env.CLAUDE_WORKSPACE_ROOT || process.cwd(), 'claude-memory');
 }
 
 // Build capture payload

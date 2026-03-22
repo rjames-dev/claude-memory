@@ -120,8 +120,11 @@ services:
       - ${CLAUDE_WORKSPACE_ROOT}:/claude-workspace:ro
       - ./processor/logs:/app/logs
       # Vault: read-write so summary agent can write session logs and project notes
-      - /home/hp-admin/code/claude-vault:/vault:rw
-      - /home/hp-admin/data/code/hp-feature-planning:/planning:ro
+      # Set VAULT_ROOT in .env — e.g. /home/yourname/code/claude-vault
+      - ${VAULT_ROOT}:/vault:rw
+      # Planning dir: optional, leave PLANNING_ROOT blank to skip
+      # Set PLANNING_ROOT in .env — e.g. /home/yourname/code/my-planning
+      - ${PLANNING_ROOT:-/tmp/claude-memory-planning-unused}:/planning:ro
     depends_on:
       context-db:
         condition: service_healthy

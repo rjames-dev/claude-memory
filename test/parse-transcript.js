@@ -88,7 +88,11 @@ function parseTranscript(filePath) {
 }
 
 // Main execution
-const transcriptPath = process.argv[2] || '/Users/jamesmba/Data/00 GITHUB/Code/2025-12-13-ive-organized-this-folder-for-the-purpose-of-esta.txt';
+const transcriptPath = process.argv[2];
+if (!transcriptPath) {
+  console.error('Usage: node parse-transcript.js <transcript-file>');
+  process.exit(1);
+}
 
 console.log('Parsing transcript:', transcriptPath);
 

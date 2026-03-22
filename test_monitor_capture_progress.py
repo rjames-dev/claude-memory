@@ -22,6 +22,7 @@ Author: Claude Sonnet 4.5
 Created: 2025-12-27
 """
 
+import os
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import sys
@@ -32,7 +33,7 @@ from io import StringIO
 import importlib.util
 spec = importlib.util.spec_from_file_location(
     "monitor_capture_progress",
-    "/Users/jamesmba/Data/00 GITHUB/Code/claude-memory/monitor-capture-progress.py"
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "monitor-capture-progress.py")
 )
 monitor_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(monitor_module)

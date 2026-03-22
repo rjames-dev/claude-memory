@@ -4,7 +4,7 @@
 
 set -e
 
-MEMORY_DIR="/Users/jamesmba/Data/00 GITHUB/Code/claude-memory"
+MEMORY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 TEST_DIR="$MEMORY_DIR/test"
 
 # Parameters

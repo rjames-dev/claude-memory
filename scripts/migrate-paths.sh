@@ -56,15 +56,15 @@ Modes:
   apply     Apply changes to database (requires confirmation)
 
 Arguments:
-  old_path  Current path in database (e.g., /Users/jamesmba/Data/00 GITHUB)
-  new_path  New path to migrate to (e.g., /Users/jamesmba/Projects)
+  old_path  Current path in database (e.g., /Users/oldname/code)
+  new_path  New path to migrate to (e.g., /home/newname/code)
 
 Examples:
   # Preview migration (safe - no changes)
-  $0 preview "/Users/jamesmba/Data/00 GITHUB" "/Users/jamesmba/Projects"
+  $0 preview "/Users/oldname/code" "/home/newname/code"
 
   # Apply migration (requires confirmation)
-  $0 apply "/Users/jamesmba/Data/00 GITHUB" "/Users/jamesmba/Projects"
+  $0 apply "/Users/oldname/code" "/home/newname/code"
 
 Environment:
   Database connection is configured via .env file or defaults:

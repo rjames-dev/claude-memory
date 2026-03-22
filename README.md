@@ -17,7 +17,7 @@ Four commands. Ten minutes. Everything running.
 git clone https://github.com/rjames-dev/claude-memory.git
 cd claude-memory
 
-# 2. Configure environment — workspace path, DB password, Anthropic API key
+# 2. Configure environment — workspace path, vault path, DB password, Anthropic API key
 ./scripts/setup-env.sh
 
 # 3. Start Docker services
@@ -27,9 +27,15 @@ docker-compose up -d
 ./hooks/setup-hooks.sh
 ```
 
-Then open **Obsidian** → *Open folder as vault* → select `~/code/vault`.
+`setup-hooks.sh` prompts you to choose your vault setup:
+- **Fresh install** → clones the vault template to `$VAULT_ROOT` (default: `$CLAUDE_WORKSPACE_ROOT/claude-vault`)
+- **Returning user / new machine** → enter your existing private vault's git URL to clone it
 
-That's it. Sessions are captured automatically. Run `promote-to-obsidian.py <snapshot_id>` after significant sessions to push insights into your vault.
+> **Vault naming convention:** the vault should be named `claude-vault`. When `setup-env.sh` asks for the vault path, accept the default or set it to a path ending in `claude-vault`.
+
+Then open **Obsidian** → *Open folder as vault* → select `$VAULT_ROOT` (e.g. `~/code/claude-vault`).
+
+That's it. Sessions are captured automatically on every compaction. An AI summary agent writes session logs, decisions, and open questions to your vault automatically.
 
 > Need more control or want to understand what's happening? Keep reading.
 
@@ -417,8 +423,8 @@ docker-compose up -d
 □ Ran scripts/setup-env.sh (workspace root + DB password + Anthropic API key)
 □ Started Docker containers (docker-compose up -d)
 □ Installed Python dependencies (pip3 install -r requirements.txt)
-□ Ran hooks/setup-hooks.sh (auto-capture hooks + Obsidian vault cloned)
-□ Opened Obsidian → pointed at $CLAUDE_WORKSPACE_ROOT/vault
+□ Ran hooks/setup-hooks.sh (auto-capture hooks + Obsidian vault cloned or pulled)
+□ Opened Obsidian → pointed at $VAULT_ROOT (e.g. $CLAUDE_WORKSPACE_ROOT/claude-vault)
 □ Initialize Skills System (./scripts/import-and-initialize-skills.sh)
 □ Install slash commands (./scripts/install-commands.sh)
 □ (Optional) Set up MCP search tools (see MCP-SETUP.md)
@@ -560,14 +566,36 @@ pip3 install -r requirements.txt
 This script will:
 - ✅ Detect your OS and Claude Code config location
 - ✅ Check if processor is running
-- ✅ Backup existing `~/.claude/settings.json` and merge hooks
+- ✅ Backup existing settings and merge hooks
 - ✅ Configure PreCompact hook for automatic session capture
-- ✅ **Clone the Obsidian vault template** to `$CLAUDE_WORKSPACE_ROOT/vault` (if not already present)
+- ✅ **Provision your Obsidian vault** at `$VAULT_ROOT` (prompts you for how)
+
+#### Vault Provisioning — Two Paths
+
+The script detects whether `$VAULT_ROOT` already exists and prompts accordingly:
+
+**Path A — Fresh install (no vault yet):**
+```
+Choice [1/2/3]: 1   ← Clone vault template (recommended)
+```
+Clones `rjames-dev/obsidian-vault-template` to `$VAULT_ROOT` with git history cleared so you can initialize it as your own private repo:
+```bash
+cd $VAULT_ROOT && git init && git remote add origin <your-private-vault-url>
+```
+
+**Path B — Returning user / new machine (vault exists in git):**
+```
+Choice [1/2/3]: 2   ← Clone your existing private vault
+Enter your vault git repo URL: git@github.com:yourname/claude-vault.git
+```
+Clones your existing vault. All prior session logs and notes will be present immediately.
+
+**Vault naming convention:** name the vault directory `claude-vault`. The default `$VAULT_ROOT` from `setup-env.sh` is `$CLAUDE_WORKSPACE_ROOT/claude-vault`. When opening in Obsidian, select this directory.
 
 **After setup:**
-- Work normally in Claude Code — sessions are captured automatically when context compacts
-- Open **Obsidian** → *Open folder as vault* → select `$CLAUDE_WORKSPACE_ROOT/vault`
-- Run `python3 promote-to-obsidian.py <snapshot_id>` after significant sessions to write insights to your vault
+- Work normally in Claude Code — sessions are captured automatically on every compaction
+- An AI summary agent writes session logs and decisions to `$VAULT_ROOT/Claude/Session-Logs/` automatically
+- Open **Obsidian** → *Open folder as vault* → select `$VAULT_ROOT` (e.g. `~/code/claude-vault`)
 
 **Detailed instructions:** See [hooks/README.md](./hooks/README.md)
 

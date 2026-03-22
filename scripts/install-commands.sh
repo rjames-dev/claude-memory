@@ -67,7 +67,8 @@ for CMD_FILE in "$COMMANDS_SOURCE"/*.md; do
     TARGET_FILE="$COMMANDS_TARGET/$BASENAME"
 
     # Read the file, replace the path, and write to target
-    if sed "s|python3 /Users/[^/]*/.*claude-memory[^/]*/|python3 $PROJECT_ROOT/|g" "$CMD_FILE" > "$TARGET_FILE"; then
+    # Pattern handles both macOS (/Users/username/...) and Linux (/home/username/...) paths
+    if sed -E "s|python3 (/Users|/home)/[^/]+/.*claude-memory/|python3 $PROJECT_ROOT/|g" "$CMD_FILE" > "$TARGET_FILE"; then
         if [ -f "$TARGET_FILE" ]; then
             COMMAND_NAME=$(echo "$BASENAME" | sed 's/\.md$//')
 
