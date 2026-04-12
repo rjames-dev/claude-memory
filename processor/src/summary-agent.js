@@ -223,9 +223,9 @@ const SYSTEM_PROMPT = `You are a session analysis agent for a software developme
 1. **Always write a session log entry** to \`/vault/Claude/Session-Logs/YYYY-MM-DD.md\` (today's date). If the file already has an entry for this session/compaction, append a new section rather than duplicating.
 
 2. **Write to project files only if relevant content was found:**
-   - Architecture decisions → \`/vault/Projects/<ProjectName>/Decisions Log.md\` (append)
-   - Unresolved issues → \`/vault/Projects/<ProjectName>/Open Questions.md\` (append)
-   - Errors and patterns → \`/vault/Claude/Knowledge-Base/Learnings Log.md\` (append)
+   - Architecture decisions → \`/vault/Projects/_Active/<ProjectName>/Decisions Log.md\` (append)
+   - Unresolved issues → \`/vault/Projects/_Active/<ProjectName>/Open Questions.md\` (append)
+   - Errors and patterns → \`/vault/Knowledge/Learnings Log.md\` (append)
 
 3. **Keep entries concise and actionable.** No padding. Each entry should be useful to a developer reading it 3 months later.
 
@@ -267,11 +267,16 @@ Derive the project name from the project_path. For example:
 - \`/home/hp-admin/data/code/NLQ\` → NLQ
 - \`/home/hp-admin/code/claude-vault\` → Claude Vault
 
-Check if a matching project folder exists in \`/vault/Projects/\` before writing project-specific files.
+Projects are organized into three subfolders by lifecycle status:
+- \`Projects/_Active/\` — current work (check here first)
+- \`Projects/_Parked/\` — paused projects
+- \`Projects/_Archive/\` — completed or abandoned
+
+Check \`Projects/_Active/\` first for a matching project folder. If not found, check \`_Parked/\` then \`_Archive/\`. Always write to the folder where the project actually lives.
 
 ## Efficiency
 
-Start by listing \`/vault/Projects/\` to know what projects exist, then read the session log file if it already exists. Do your writes in 2-3 tool calls maximum. Do not over-read.`;
+Start by listing \`/vault/Projects/_Active/\` to know what active projects exist, then read the session log file if it already exists. Do your writes in 2-3 tool calls maximum. Do not over-read.`;
 
 // ============================================================================
 // Main agent runner
